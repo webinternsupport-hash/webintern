@@ -37,6 +37,79 @@ def get_auth_config():
         'google_client_id': getattr(Config, 'GOOGLE_CLIENT_ID', '') or ''
     }), 200
 
+@auth_bp.route('/api/auth/complete-profile', methods=['POST'])
+@auth_bp.route('/auth/complete-profile', methods=['POST'])
+@jwt_required
+def complete_profile():
+    """Complete user profile with required fields after Google login."""
+    user = request.user
+    data = request.get_json() or {}
+    
+    full_name = data.get('full_name', '').strip() or user.get('name')
+    phone = data.get('phone', '').strip()
+    phone_country_code = data.get('phone_country_code', '+91').strip()
+    college = data.get('college', '').strip() or data.get('college_name', '').strip()
+    department = data.get('department', '').strip() or data.get('department_name', '').strip()
+    degree = data.get('degree', '').strip()
+    
+    # Validation
+    if not full_name:
+        return jsonify({'error': 'Full name is required.'}), 400
+    if not phone:
+        return jsonify({'error': 'Phone number is required.'}), 400
+    if not college:
+        return jsonify({'error': 'College name is required.'}), 400
+    if not department:
+        return jsonify({'error': 'Department is required.'}), 400
+    
+    # Update in local DB
+    try:
+        existing = query_db("SELECT id FROM profiles WHERE id = ?", (user['sub'],), one=True)
+        if existing:
+            execute_db("""
+                UPDATE profiles 
+                SET full_name = ?, phone = ?, phone_country_code = ?, college = ?, department = ?, degree = ?
+                WHERE id = ?
+            """, (full_name, phone, phone_country_code, college, department, degree, user['sub']))
+        else:
+            execute_db("""
+                INSERT INTO profiles (id, full_name, email, phone, phone_country_code, college, department, degree)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (user['sub'], full_name, user.get('email'), phone, phone_country_code, college, department, degree))
+    except Exception as e:
+        print(f"[Profile Update Error]: {e}")
+    
+    # Update in Supabase if available
+    try:
+        supabase_admin = get_supabase_admin()
+        update_data = {
+            'name': full_name,
+            'mobile': phone,
+            'phone_country_code': phone_country_code,
+            'college': college,
+            'department': department,
+            'degree': degree,
+            'profile_complete': True
+        }
+        supabase_admin.table('profiles').update(update_data).eq('id', user['sub']).execute()
+    except Exception as e:
+        print(f"[Supabase Profile Update Warning]: {e}")
+    
+    return jsonify({
+        'message': 'Profile completed successfully!',
+        'user': {
+            'id': user['sub'],
+            'email': user.get('email'),
+            'full_name': full_name,
+            'phone': phone,
+            'college': college,
+            'department': department,
+            'degree': degree,
+            'profile_complete': True,
+            'role': 'student'
+        }
+    }), 200
+
 def sync_profile_to_local_db(user_id, full_name, email, phone="", phone_country_code="+91", marketing_opt_in=False):
     """Sync profile record to SQLite database for compatibility with existing routes."""
     try:
@@ -514,7 +587,7 @@ def sync_google_user():
                     'auth_provider': 'google',
                     'terms_accepted': True,
                     'marketing_opt_in': False,
-                    'profile_complete': True
+                    'profile_complete': False
                 }
                 safe_upsert_profile(supabase_admin, new_profile)
                 profile = new_profile
@@ -554,6 +627,13 @@ def sync_google_user():
             'role': 'student'
         })
 
+        profile_complete = bool(
+            profile.get('name') and profile.get('email') and 
+            profile.get('mobile') and 
+            profile.get('college') and 
+            profile.get('department')
+        )
+
         resp = make_response(jsonify({
             'message': 'Google authentication successful.',
             'token': token,
@@ -562,7 +642,11 @@ def sync_google_user():
                 'email': email,
                 'full_name': profile.get('name') or name or email.split('@')[0],
                 'mobile': profile.get('mobile', ''),
-                'profile_complete': True,
+                'college': profile.get('college', ''),
+                'department': profile.get('department', ''),
+                'degree': profile.get('degree', ''),
+                'phone_country_code': profile.get('phone_country_code', '+91'),
+                'profile_complete': profile_complete,
                 'auth_provider': profile.get('auth_provider', 'google'),
                 'role': 'student'
             }
@@ -724,21 +808,40 @@ def get_current_user():
             prof_res = supabase_admin.table('profiles').select('*').eq('id', user_payload['sub']).execute()
             if prof_res.data and len(prof_res.data) > 0:
                 p = prof_res.data[0]
+                profile_complete = bool(
+                    p.get('name') and p.get('email') and 
+                    p.get('mobile') and p.get('college') and 
+                    p.get('department')
+                )
                 return jsonify({
                     'user': {
                         'id': p['id'],
                         'full_name': p.get('name') or user_payload.get('name'),
                         'email': user_payload.get('email'),
                         'mobile': p.get('mobile'),
-                        'profile_complete': True,
+                        'college': p.get('college'),
+                        'department': p.get('department'),
+                        'degree': p.get('degree'),
+                        'phone_country_code': p.get('phone_country_code', '+91'),
+                        'profile_complete': profile_complete,
+                        'auth_provider': p.get('auth_provider', 'email'),
                         'role': 'student'
                     }
                 }), 200
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[Supabase Profile Fetch Error]: {e}")
 
-        profile = query_db("SELECT id, full_name, email, phone, phone_country_code, college, avatar_url, created_at FROM profiles WHERE id = ?", (user_payload['sub'],), one=True)
+        profile = query_db("""
+            SELECT id, full_name, email, phone, phone_country_code, college, department, degree, avatar_url, created_at 
+            FROM profiles WHERE id = ?
+        """, (user_payload['sub'],), one=True)
         if profile:
+            profile_complete = bool(
+                profile.get('full_name') and profile.get('email') and 
+                profile.get('phone') and profile.get('college') and 
+                profile.get('department')
+            )
+            profile['profile_complete'] = profile_complete
             profile['role'] = 'student'
             return jsonify({'user': profile}), 200
 

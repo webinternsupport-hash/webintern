@@ -81,19 +81,17 @@ def verify_certificate(certificate_id):
 @jwt_required
 def get_document_details(doc_id):
     user = request.user
-    doc = query_db("""
-        SELECT d.*, p.full_name as student_name, i.title as internship_title
-        FROM documents d
-        JOIN applications a ON d.application_id = a.id
-        JOIN profiles p ON d.student_id = p.id
-        JOIN internships i ON a.internship_id = i.id
-        WHERE d.id = ? OR d.document_number = ?
-    """, (doc_id, doc_id), one=True)
-
+    doc = query_db("SELECT * FROM documents WHERE id = ? OR document_number = ?", (doc_id, doc_id), one=True)
+    
     if not doc:
         return jsonify({'error': 'Document record not found.'}), 404
 
-    if user.get('role') != 'admin' and doc['student_id'] != user['sub']:
+    # Get application to verify ownership
+    app = query_db("SELECT * FROM applications WHERE id = ?", (doc['application_id'],), one=True)
+    if not app:
+        return jsonify({'error': 'Associated application not found.'}), 404
+    
+    if user.get('role') != 'admin' and app['user_id'] != user['sub']:
         return jsonify({'error': 'Unauthorized access to document.'}), 403
 
     return jsonify({'document': doc}), 200
@@ -106,12 +104,53 @@ def download_document(doc_id):
     if not doc:
         return jsonify({'error': 'Document not found.'}), 404
 
-    if user.get('role') != 'admin' and doc['student_id'] != user['sub']:
+    # Check authorization - get the application and verify user ownership
+    app = query_db("SELECT * FROM applications WHERE id = ?", (doc['application_id'],), one=True)
+    if not app:
+        return jsonify({'error': 'Associated application not found.'}), 404
+    
+    if user.get('role') != 'admin' and app['user_id'] != user['sub']:
         return jsonify({'error': 'Unauthorized access to document file.'}), 403
 
     file_path = doc['file_path']
     if os.path.exists(file_path):
         return send_file(file_path, mimetype='application/pdf', as_attachment=True, download_name=f"{doc['document_number']}.pdf")
+    
+    # If file doesn't exist, regenerate it (offer letter)
+    if doc['document_type'] == 'OFFER_LETTER':
+        try:
+            from utils.pdf_generator import generate_offer_letter_pdf
+            internship = query_db("SELECT * FROM internships WHERE id = ?", (app['internship_id'],), one=True)
+            profile = query_db("SELECT * FROM profiles WHERE id = ?", (app['user_id'],), one=True)
+            
+            if not internship or not profile:
+                return jsonify({'error': 'Cannot regenerate offer letter - missing data.'}), 400
+            
+            pdf_bytes = generate_offer_letter_pdf(
+                student_name=profile['full_name'],
+                internship_title=internship['title'],
+                date_str=app.get('start_date'),
+                save_id=app['id'],
+                company_name=internship.get('company_name') or "Web Intern Platform",
+                start_date=app.get('start_date'),
+                end_date=app.get('end_date'),
+                duration=f"{internship.get('duration_weeks') or 4} Weeks",
+                location=internship.get('location') or "Virtual / Remote",
+                skills_tools=internship.get('skills_tools'),
+                tasks_projects=internship.get('tasks_projects'),
+                offer_id=doc['document_number'],
+                college_name=profile.get('college'),
+                department=profile.get('department')
+            )
+            return Response(
+                pdf_bytes,
+                mimetype='application/pdf',
+                headers={'Content-Disposition': f'inline; filename="{doc["document_number"]}.pdf"'}
+            )
+        except Exception as e:
+            print(f"[Offer Letter Regeneration Error]: {e}")
+            return jsonify({'error': f'Document not found and regeneration failed: {str(e)}'}), 500
+    
     return jsonify({'error': 'Document PDF file missing from disk.'}), 404
 
 @document_bp.route('/api/students/<student_id>/documents', methods=['GET'])
@@ -122,11 +161,11 @@ def get_student_documents(student_id):
         return jsonify({'error': 'Unauthorized.'}), 403
 
     docs = query_db("""
-        SELECT d.*, i.title as internship_title
+        SELECT d.*, i.title as internship_title, a.user_id as owner_id
         FROM documents d
         JOIN applications a ON d.application_id = a.id
         JOIN internships i ON a.internship_id = i.id
-        WHERE d.student_id = ?
+        WHERE a.user_id = ?
         ORDER BY d.created_at DESC
     """, (student_id,))
 
