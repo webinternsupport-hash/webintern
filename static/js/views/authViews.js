@@ -1,37 +1,5 @@
-// Auth Views Renderer (Create Account & Login with Supabase, Email/Password, Google OAuth — Direct Sign-In without compulsory OTP)
+// Auth Views Renderer (Create Account & Login with Email/Password and Full Student Credentials)
 
-const GOOGLE_BTN_HTML = `
-  <div style="display: flex; align-items: center; margin: 20px 0; text-align: center;">
-    <div style="flex-grow: 1; border-bottom: 1px solid var(--color-border);"></div>
-    <span style="padding: 0 12px; font-size: 13px; color: var(--color-gray-text); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 500;">or</span>
-    <div style="flex-grow: 1; border-bottom: 1px solid var(--color-border);"></div>
-  </div>
-
-  <button type="button" id="google-signin-btn" class="btn btn-full" style="
-    background-color: #FFFFFF;
-    color: #3C4043;
-    border: 1px solid #DADCE0;
-    border-radius: 9999px;
-    font-weight: 600;
-    font-size: 14px;
-    padding: 12px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    transition: background-color 0.2s, box-shadow 0.2s;
-    cursor: pointer;
-  " onmouseover="this.style.backgroundColor='#F8F9FA'; this.style.boxShadow='0 2px 6px rgba(0,0,0,0.12)';" onmouseout="this.style.backgroundColor='#FFFFFF'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)';">
-    <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-      <path fill="#4285F4" d="M17.64 9.2c0-.74-.06-1.28-.19-1.84H9v3.34h4.96c-.1.83-.64 2.08-1.84 2.92l2.84 2.2c1.7-1.57 2.68-3.88 2.68-6.62z"/>
-      <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.84-2.2c-.76.53-1.78.9-3.12.9-2.38 0-4.41-1.57-5.13-3.72L.97 13.01C2.45 15.96 5.48 18 9 18z"/>
-      <path fill="#FBBC05" d="M3.87 10.8c-.2-.58-.31-1.21-.31-1.8s.11-1.22.31-1.8L.97 4.99C.35 6.22 0 7.6 0 9s.35 2.78.97 4.01l2.9-2.21z"/>
-      <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.59C13.46.89 11.43 0 9 0 5.48 0 2.45 2.04.97 4.99l2.9 2.21C4.59 5.05 6.62 3.58 9 3.58z"/>
-    </svg>
-    <span>Continue with Google</span>
-  </button>
-`;
 
 const AuthViews = {
   renderRegister() {
@@ -116,15 +84,15 @@ const AuthViews = {
                 </div>
               </div>
 
-              <div style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px;">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="reg-terms" required />
-                  <span>I agree to the <a href="#/privacy-policy" target="_blank" style="color: var(--color-accent-blue);">Terms & Conditions</a> and <a href="#/privacy-policy" target="_blank" style="color: var(--color-accent-blue);">Privacy Policy</a> *</span>
+              <div style="margin-bottom: 24px; display: flex; flex-direction: column; gap: 14px;">
+                <label class="checkbox-label" for="reg-terms" style="display: flex; align-items: flex-start; gap: 12px; font-size: 14px; color: var(--color-blue-dark); cursor: pointer; padding: 6px 0; touch-action: manipulation;">
+                  <input type="checkbox" id="reg-terms" style="width: 22px; height: 22px; min-width: 22px; min-height: 22px; flex-shrink: 0; margin-top: 1px; cursor: pointer; accent-color: #0B3D91;" required />
+                  <span style="font-size: 13.5px; line-height: 1.4;">I agree to the <a href="#/privacy-policy" target="_blank" style="color: var(--color-accent-blue); text-decoration: underline; font-weight: 600;" onclick="event.stopPropagation();">Terms & Conditions</a> and <a href="#/privacy-policy" target="_blank" style="color: var(--color-accent-blue); text-decoration: underline; font-weight: 600;" onclick="event.stopPropagation();">Privacy Policy</a> *</span>
                 </label>
 
-                <label class="checkbox-label">
-                  <input type="checkbox" id="reg-marketing" />
-                  <span>Send me updates, offers and marketing emails</span>
+                <label class="checkbox-label" for="reg-marketing" style="display: flex; align-items: flex-start; gap: 12px; font-size: 14px; color: var(--color-blue-dark); cursor: pointer; padding: 6px 0; touch-action: manipulation;">
+                  <input type="checkbox" id="reg-marketing" style="width: 22px; height: 22px; min-width: 22px; min-height: 22px; flex-shrink: 0; margin-top: 1px; cursor: pointer; accent-color: #0B3D91;" />
+                  <span style="font-size: 13.5px; line-height: 1.4;">Send me updates, offers and marketing emails</span>
                 </label>
               </div>
 
@@ -132,8 +100,6 @@ const AuthViews = {
                 Create Account
               </button>
             </form>
-
-            ${GOOGLE_BTN_HTML}
 
             <div style="text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--color-border);">
               <span style="font-size: 14px; color: var(--color-gray-text);">Already have an account? </span>
@@ -147,7 +113,6 @@ const AuthViews = {
 
     if (window.feather) feather.replace();
     this.bindRegisterEvents();
-    this.bindGoogleAuthEvent();
   },
 
   bindRegisterEvents() {
@@ -253,8 +218,6 @@ const AuthViews = {
               </button>
             </form>
 
-            ${GOOGLE_BTN_HTML}
-
             <div style="text-align: center; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--color-border);">
               <span style="font-size: 14px; color: var(--color-gray-text);">New to Web Intern? </span>
               <a href="#/register" style="font-weight: 600; color: var(--color-accent-blue);">Create an account</a>
@@ -267,7 +230,6 @@ const AuthViews = {
 
     if (window.feather) feather.replace();
     this.bindLoginEvents();
-    this.bindGoogleAuthEvent();
   },
 
   bindLoginEvents() {
@@ -304,101 +266,6 @@ const AuthViews = {
         submitBtn.innerText = 'Sign In';
       }
     });
-  },
-
-  bindGoogleAuthEvent() {
-    const googleBtn = document.getElementById('google-signin-btn');
-    googleBtn?.addEventListener('click', async () => {
-      try {
-        const authConfig = await API.request('/api/auth/config');
-        const clientId = authConfig.google_client_id;
-        
-        if (!clientId) {
-          Toast.show('Google Client ID is not configured.', 'error');
-          return;
-        }
-        
-        // Option A: Official Google Identity Services Popup (GIS Token Client)
-        if (window.google?.accounts?.oauth2) {
-          const client = window.google.accounts.oauth2.initTokenClient({
-            client_id: clientId,
-            scope: 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
-            callback: async (tokenResponse) => {
-              if (tokenResponse.error) {
-                Toast.show(`Google login cancelled: ${tokenResponse.error}`, 'error');
-                return;
-              }
-              try {
-                Toast.show('Authenticating with Google...', 'info');
-                const res = await API.request('/api/auth/google-sync', {
-                  method: 'POST',
-                  body: { access_token: tokenResponse.access_token }
-                });
-
-                API.setAuthToken(res.token);
-                API.setCurrentUser(res.user);
-                HeaderComponent.updateAuthState();
-
-                Toast.show('Signed in with Google successfully!', 'success');
-                window.location.hash = '#/dashboard';
-              } catch (err) {
-                Toast.show(err.message || 'Google authentication failed.', 'error');
-              }
-            }
-          });
-          client.requestAccessToken();
-          return;
-        }
-
-        // Option B: Supabase OAuth if initialized
-        const supabase = await API.getSupabase();
-        if (supabase) {
-          const redirectUrl = window.location.origin + '/#/';
-          const { error } = await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: { redirectTo: redirectUrl }
-          });
-          if (!error) return;
-        }
-
-        // Option C: Standard Google OAuth Redirect
-        const redirectUri = encodeURIComponent(window.location.origin + '/oauth2callback');
-        const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email%20profile`;
-        window.location.href = googleAuthUrl;
-
-      } catch (err) {
-        Toast.show(`Google Sign-In error: ${err.message}`, 'error');
-      }
-    });
-  },
-
-  async checkGoogleOAuthCallback() {
-    try {
-      const supabase = await API.getSupabase();
-      if (!supabase) return;
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session && session.user) {
-        const googleUser = session.user;
-        const res = await API.request('/api/auth/google-sync', {
-          method: 'POST',
-          body: {
-            id: googleUser.id,
-            email: googleUser.email,
-            name: googleUser.user_metadata?.full_name || googleUser.user_metadata?.name || ''
-          }
-        });
-
-        API.setAuthToken(res.token);
-        API.setCurrentUser(res.user);
-        HeaderComponent.updateAuthState();
-
-        Toast.show('Signed in with Google successfully!', 'success');
-        window.location.hash = '#/dashboard';
-      }
-    } catch (e) {
-      console.warn('Google OAuth session check:', e);
-    }
   },
 
   async handleForgotPassword() {

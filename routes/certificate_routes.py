@@ -209,26 +209,30 @@ def get_certificate(cert_id):
 def download_certificate_pdf(cert_id):
     clean_id = str(cert_id).strip()
     cert = query_db("""
-        SELECT c.*, a.id as application_id, a.user_id, a.status as app_status, a.completion_status as app_completion_status, a.end_date, a.start_date, p.full_name as student_name, p.college as student_college, p.department as student_dept,
+        SELECT c.*, a.id as application_id, a.user_id, a.status as app_status, a.completion_status as app_completion_status, a.end_date, a.start_date, 
+               p.full_name as student_name, p.college as student_college, p.department as student_dept,
                m.college_name as master_college, m.department as master_dept,
                i.title as internship_title, i.company_name, i.guide_name, i.project_name
         FROM certificates c
         JOIN applications a ON c.application_id = a.id
         JOIN profiles p ON a.user_id = p.id
-        JOIN internships i ON a.internship_id = i.id
+        LEFT JOIN internships i ON a.internship_id = i.id
         LEFT JOIN master_internships m ON a.id = m.application_id
         WHERE c.id = ? OR c.application_id = ? OR a.certificate_id = ? OR a.id = ?
     """, (clean_id, clean_id, clean_id, clean_id), one=True)
 
     if not cert:
-        # Check applications directly
+        # Check applications directly with LEFT JOIN to handle missing internships
         app_rec = query_db("""
             SELECT a.*, p.full_name as student_name, p.college as student_college, p.department as student_dept,
                    m.college_name as master_college, m.department as master_dept,
-                   i.title as internship_title, i.company_name, i.guide_name, i.project_name
+                   COALESCE(i.title, 'Virtual Internship') as internship_title, 
+                   COALESCE(i.company_name, 'Web Intern Platform') as company_name, 
+                   COALESCE(i.guide_name, 'Dr. A. K. Sharma') as guide_name, 
+                   COALESCE(i.project_name, 'Capstone Project') as project_name
             FROM applications a
             JOIN profiles p ON a.user_id = p.id
-            JOIN internships i ON a.internship_id = i.id
+            LEFT JOIN internships i ON a.internship_id = i.id
             LEFT JOIN master_internships m ON a.id = m.application_id
             WHERE a.id = ? OR a.certificate_id = ? OR a.certificate_id LIKE ?
         """, (clean_id, clean_id, f"%{clean_id}%"), one=True)
@@ -295,19 +299,19 @@ def download_certificate_pdf(cert_id):
 
     date_str = datetime.datetime.now().strftime("%B %d, %Y")
     cert_id_str = cert.get('certificate_id') or cert['id']
-    eff_college = cert.get('master_college') or cert.get('student_college')
-    eff_dept = cert.get('master_dept') or cert.get('student_dept')
+    eff_college = cert.get('master_college') or cert.get('student_college') or 'Institution'
+    eff_dept = cert.get('master_dept') or cert.get('student_dept') or 'Department'
 
     pdf_bytes = generate_certificate_pdf(
         student_name=cert['student_name'],
-        internship_title=cert['internship_title'],
+        internship_title=cert.get('internship_title') or 'Virtual Internship',
         date_str=date_str,
         cert_id=cert_id_str,
         is_verified=True,
         college_name=eff_college,
         department=eff_dept,
         guide_name=cert.get('guide_name') or "Dr. A. K. Sharma",
-        project_name=cert.get('project_name') or f"{cert['internship_title']} Capstone",
+        project_name=cert.get('project_name') or f"{cert.get('internship_title', 'Internship')} Capstone",
         start_date=cert.get('start_date'),
         end_date=cert.get('end_date'),
         company_name=cert.get('company_name') or "Web Intern Platform"

@@ -193,6 +193,9 @@ def ensure_migrations(cursor):
     _add_col('profiles', 'auth_provider', "TEXT DEFAULT 'email'")
     _add_col('profiles', 'mobile', 'TEXT')
     _add_col('profiles', 'terms_accepted', 'BOOLEAN DEFAULT FALSE')
+    _add_col('profiles', 'google_account_id', 'TEXT')
+    _add_col('profiles', 'sync_enabled', 'BOOLEAN DEFAULT TRUE')
+    _add_col('profiles', 'last_sync_time', 'TIMESTAMP')
 
     # Internships extensions
     _add_col('internships', 'company_name', "TEXT DEFAULT 'Web Intern Platform'")
@@ -210,6 +213,8 @@ def ensure_migrations(cursor):
     _add_col('applications', 'offer_letter_id', 'TEXT')
     _add_col('applications', 'certificate_id', 'TEXT')
     _add_col('applications', 'completion_status', "TEXT DEFAULT 'pending'")
+    _add_col('applications', 'google_sync_status', "TEXT DEFAULT 'not_synced'")
+    _add_col('applications', 'last_synced_at', 'TIMESTAMP')
 
     # Submissions extensions
     _add_col('submissions', 'marks', 'REAL')

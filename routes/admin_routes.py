@@ -91,3 +91,11 @@ def issue_certificate_manually():
         'message': 'Certificate issued successfully.',
         'certificate_id': cert_id
     }), 200
+
+@admin_bp.route('/api/admin/google-sheets/status', methods=['GET'])
+@admin_bp.route('/api/google-sheets/status', methods=['GET'])
+def get_google_sheets_status():
+    from utils.google_sheets_service import check_google_sheets_connection
+    res = check_google_sheets_connection()
+    return jsonify(res), 200
+
