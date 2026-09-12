@@ -93,33 +93,47 @@ def create_application():
     master_rec, _ = save_master_record(master_data)
 
     date_str = start_date_str
-    pdf_bytes = generate_offer_letter_pdf(
-        student_name=student_name,
-        internship_title=f"{internship['title']} Intern",
-        date_str=date_str,
-        save_id=app_id,
-        company_name=internship.get('company_name') or "Web Intern Platform",
-        start_date=start_date_str,
-        end_date=end_date_str,
-        duration=f"{duration_weeks} Weeks",
-        location=internship.get('location') or "Virtual / Remote",
-        skills_tools=internship.get('skills_tools'),
-        tasks_projects=internship.get('tasks_projects'),
-        offer_id=offer_id,
-        college_name=student_college,
-        department=student_dept
-    )
+    
+    # ✅ PRE-GENERATE AND CACHE OFFER LETTER PDF
+    try:
+        pdf_bytes = generate_offer_letter_pdf(
+            student_name=student_name,
+            internship_title=f"{internship['title']} Intern",
+            date_str=date_str,
+            save_id=app_id,
+            company_name=internship.get('company_name') or "Web Intern Platform",
+            start_date=start_date_str,
+            end_date=end_date_str,
+            duration=f"{duration_weeks} Weeks",
+            location=internship.get('location') or "Virtual / Remote",
+            skills_tools=internship.get('skills_tools'),
+            tasks_projects=internship.get('tasks_projects'),
+            offer_id=offer_id,
+            college_name=student_college,
+            department=student_dept
+        )
+        
+        # Save PDF to disk for instant retrieval
+        os.makedirs(Config.GENERATED_OFFERS_DIR, exist_ok=True)
+        file_path = os.path.join(Config.GENERATED_OFFERS_DIR, f"offer_{app_id}.pdf")
+        with open(file_path, 'wb') as f:
+            f.write(pdf_bytes)
+        
+        print(f"[Offer Letter Generated] App: {app_id}, File: {file_path}, Size: {len(pdf_bytes)} bytes")
+    except Exception as e:
+        print(f"[PDF Generation Error] {e}")
+        file_path = None
+        pdf_bytes = b""
 
     # Save document record in DB
     doc_id = str(uuid.uuid4())
-    file_path = os.path.join(Config.GENERATED_OFFERS_DIR, f"offer_{app_id}.pdf")
     
-    # Trigger transactional offer letter email
+    # Trigger transactional offer letter email (async in background)
     email_success, email_res = send_offer_letter_email(
         to_email=to_email,
         student_name=student_name,
         internship_title=internship['title'],
-        pdf_bytes=pdf_bytes,
+        pdf_bytes=pdf_bytes if pdf_bytes else None,
         start_date=start_date_str,
         end_date=end_date_str,
         duration=f"{duration_weeks} Weeks",
@@ -251,27 +265,52 @@ def download_offer_letter(app_id):
     if not app_record:
         return jsonify({'error': 'Application not found.'}), 404
 
+    # ✅ TRY TO SERVE CACHED PDF FIRST (INSTANT)
+    file_path = os.path.join(Config.GENERATED_OFFERS_DIR, f"offer_{app_id}.pdf")
+    if os.path.exists(file_path):
+        print(f"[Offer Letter Served from Cache] App: {app_id}, File: {file_path}")
+        return send_file(
+            file_path,
+            mimetype='application/pdf',
+            as_attachment=False,
+            download_name=f'Offer_Letter_{app_id[:8]}.pdf'
+        )
+
+    # ✅ IF NOT CACHED, REGENERATE (FALLBACK)
+    print(f"[Offer Letter Not Cached] Regenerating for App: {app_id}")
+    
     profile = query_db("SELECT * FROM profiles WHERE id = ?", (app_record['user_id'],), one=True)
     student_name = profile['full_name'] if profile else "Intern Candidate"
     date_str = app_record.get('start_date') or datetime.datetime.now().strftime("%B %d, %Y")
 
-    pdf_bytes = generate_offer_letter_pdf(
-        student_name=student_name,
-        internship_title=app_record['internship_title'],
-        date_str=date_str,
-        save_id=app_id,
-        company_name=app_record.get('company_name') or "Web Intern Platform",
-        start_date=app_record.get('start_date'),
-        end_date=app_record.get('end_date'),
-        duration=f"{app_record.get('duration_weeks') or 4} Weeks",
-        location=app_record.get('location') or "Virtual / Remote",
-        skills_tools=app_record.get('skills_tools'),
-        tasks_projects=app_record.get('tasks_projects'),
-        offer_id=app_record.get('offer_letter_id')
-    )
-    
-    return Response(
-        pdf_bytes,
-        mimetype='application/pdf',
-        headers={'Content-Disposition': f'inline; filename="Offer_Letter_{app_id[:8]}.pdf"'}
-    )
+    try:
+        pdf_bytes = generate_offer_letter_pdf(
+            student_name=student_name,
+            internship_title=app_record['internship_title'],
+            date_str=date_str,
+            save_id=app_id,
+            company_name=app_record.get('company_name') or "Web Intern Platform",
+            start_date=app_record.get('start_date'),
+            end_date=app_record.get('end_date'),
+            duration=f"{app_record.get('duration_weeks') or 4} Weeks",
+            location=app_record.get('location') or "Virtual / Remote",
+            skills_tools=app_record.get('skills_tools'),
+            tasks_projects=app_record.get('tasks_projects'),
+            offer_id=app_record.get('offer_letter_id')
+        )
+        
+        # Cache it for next time
+        os.makedirs(Config.GENERATED_OFFERS_DIR, exist_ok=True)
+        with open(file_path, 'wb') as f:
+            f.write(pdf_bytes)
+        
+        print(f"[Offer Letter Regenerated and Cached] App: {app_id}")
+        
+        return Response(
+            pdf_bytes,
+            mimetype='application/pdf',
+            headers={'Content-Disposition': f'inline; filename="Offer_Letter_{app_id[:8]}.pdf"'}
+        )
+    except Exception as e:
+        print(f"[PDF Generation Error] {e}")
+        return jsonify({'error': f'Failed to generate offer letter: {str(e)}'}), 500
