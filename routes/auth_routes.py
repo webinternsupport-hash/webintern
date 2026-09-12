@@ -570,46 +570,55 @@ def sync_google_user():
 
     profile = None
     try:
-        try:
-            supabase_admin = get_supabase_admin()
-            user_uuid = get_or_create_supabase_auth_user(supabase_admin, email, name or email.split('@')[0])
-            
-            prof_res = supabase_admin.table('profiles').select('*').eq('id', user_uuid).execute()
-            profile = prof_res.data[0] if (prof_res.data and len(prof_res.data) > 0) else None
+        # ✅ FIX: Check if user already exists in local DB by EMAIL (not by Google ID)
+        # This ensures the same user gets the same user_id across logins
+        existing_local = query_db("SELECT * FROM profiles WHERE email = ?", (email,), one=True)
+        
+        if existing_local:
+            # User exists - reuse their existing ID to preserve applications
+            user_uuid = existing_local['id']
+            profile = {
+                'id': user_uuid,
+                'name': existing_local['full_name'] or name or email.split('@')[0],
+                'email': email,
+                'mobile': existing_local.get('phone') or '',
+                'phone_country_code': existing_local.get('phone_country_code', '+91'),
+                'college': existing_local.get('college', ''),
+                'department': existing_local.get('department', ''),
+                'degree': existing_local.get('degree', ''),
+                'auth_provider': existing_local.get('auth_provider', 'google')
+            }
+            # Update auth provider if was email-only
+            if existing_local.get('auth_provider') == 'email':
+                execute_db("UPDATE profiles SET auth_provider = ? WHERE id = ?", ('both', user_uuid))
+                profile['auth_provider'] = 'both'
+        else:
+            # New user via Google
+            try:
+                supabase_admin = get_supabase_admin()
+                user_uuid = get_or_create_supabase_auth_user(supabase_admin, email, name or email.split('@')[0])
+                
+                prof_res = supabase_admin.table('profiles').select('*').eq('id', user_uuid).execute()
+                profile = prof_res.data[0] if (prof_res.data and len(prof_res.data) > 0) else None
 
-            if not profile:
-                new_profile = {
-                    'id': user_uuid,
-                    'name': name or email.split('@')[0],
-                    'email': email,
-                    'mobile': '',
-                    'phone_verified': True,
-                    'auth_provider': 'google',
-                    'terms_accepted': True,
-                    'marketing_opt_in': False,
-                    'profile_complete': False
-                }
-                safe_upsert_profile(supabase_admin, new_profile)
-                profile = new_profile
-                sync_profile_to_local_db(user_uuid, name or email.split('@')[0], email)
-            else:
-                if profile.get('auth_provider') == 'email':
-                    supabase_admin.table('profiles').update({'auth_provider': 'both'}).eq('id', user_uuid).execute()
-                    profile['auth_provider'] = 'both'
-        except Exception as se:
-            print(f"[Supabase Sync Note]: {se}")
-
-        if not profile:
-            local_prof = query_db("SELECT * FROM profiles WHERE email = ?", (email,), one=True)
-            if local_prof:
-                profile = {
-                    'id': local_prof['id'],
-                    'name': local_prof['full_name'],
-                    'email': email,
-                    'mobile': local_prof.get('phone') or '',
-                    'auth_provider': local_prof.get('auth_provider', 'google')
-                }
-            else:
+                if not profile:
+                    new_profile = {
+                        'id': user_uuid,
+                        'name': name or email.split('@')[0],
+                        'email': email,
+                        'mobile': '',
+                        'phone_verified': True,
+                        'auth_provider': 'google',
+                        'terms_accepted': True,
+                        'marketing_opt_in': False,
+                        'profile_complete': False
+                    }
+                    safe_upsert_profile(supabase_admin, new_profile)
+                    profile = new_profile
+                    sync_profile_to_local_db(user_uuid, name or email.split('@')[0], email)
+            except Exception as se:
+                print(f"[Supabase Sync Note]: {se}")
+                # Fallback: create deterministic UUID for new Google user
                 user_uuid = google_sub_to_uuid(user_id or email)
                 sync_profile_to_local_db(user_uuid, name or email.split('@')[0], email)
                 profile = {

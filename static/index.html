@@ -108,10 +108,40 @@
       <span>Profile</span>
     </a>
     <a href="#/" class="bottom-nav-item" data-route="menu" id="bottom-nav-menu">
-      <i data-feather="more-vertical"></i>
-      <span>More</span>
+      <i data-feather="menu"></i>
+      <span>Menu</span>
     </a>
   </nav>
+
+  <!-- More Menu Popup (Bottom Sheet) -->
+  <div class="more-menu-overlay" id="more-menu-overlay">
+    <div class="more-menu-sheet" id="more-menu-sheet">
+      <div class="more-menu-header">
+        <h3>More Options</h3>
+        <button class="more-menu-close" id="more-menu-close">
+          <i data-feather="x"></i>
+        </button>
+      </div>
+      <div class="more-menu-items">
+        <a href="#/contact-us" class="more-menu-item">
+          <i data-feather="mail"></i>
+          <span>Contact Support</span>
+        </a>
+        <a href="#/about-us" class="more-menu-item">
+          <i data-feather="info"></i>
+          <span>About Us</span>
+        </a>
+        <a href="#/privacy-policy" class="more-menu-item">
+          <i data-feather="shield"></i>
+          <span>Privacy & Terms</span>
+        </a>
+        <button class="more-menu-item" id="more-menu-logout" style="color: #ef4444; text-align: left;">
+          <i data-feather="log-out"></i>
+          <span>Logout</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Footer -->
   <footer style="background-color: var(--color-blue-dark); color: var(--color-white); padding: 64px 0 32px 0;">

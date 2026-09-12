@@ -31,6 +31,7 @@ def create_application():
     # Check existing active application/enrollment
     existing = query_db("SELECT * FROM applications WHERE user_id = ? AND internship_id = ?", (user['sub'], internship_id), one=True)
     if existing:
+        print(f"[Application Already Exists] User: {user['sub']}, Internship: {internship_id}, App ID: {existing['id']}")
         return jsonify({
             'message': 'You have already applied to / enrolled in this internship.',
             'application': existing,
@@ -47,10 +48,17 @@ def create_application():
     offer_id = f"WI-OFFER-2026-{app_id[:6].upper()}"
     cert_id = f"WI-CERT-2026-{app_id[:6].upper()}"
 
-    execute_db("""
-        INSERT INTO applications (id, user_id, internship_id, status, offer_letter_sent, start_date, end_date, offer_letter_id, certificate_id, completion_status)
-        VALUES (?, ?, ?, 'active', 1, ?, ?, ?, ?, 'pending')
-    """, (app_id, user['sub'], internship_id, start_date_str, end_date_str, offer_id, cert_id))
+    # ✅ ENSURE APPLICATION IS SAVED WITH ALL FIELDS
+    try:
+        execute_db("""
+            INSERT INTO applications (id, user_id, internship_id, status, offer_letter_sent, start_date, end_date, offer_letter_id, certificate_id, completion_status)
+            VALUES (?, ?, ?, 'active', 1, ?, ?, ?, ?, 'pending')
+        """, (app_id, user['sub'], internship_id, start_date_str, end_date_str, offer_id, cert_id))
+        
+        print(f"[Application Created] ID: {app_id}, User: {user['sub']}, Internship: {internship_id}")
+    except Exception as e:
+        print(f"[Application Creation Error] {e}")
+        return jsonify({'error': f'Failed to save application: {str(e)}'}), 500
 
     # Fetch user profile to populate Master Internship Record
     profile = query_db("SELECT * FROM profiles WHERE id = ?", (user['sub'],), one=True)
@@ -149,7 +157,13 @@ def create_application():
         "email_message_id": msg_id
     }, document_id=doc_id)
 
+    # ✅ VERIFY APPLICATION WAS SAVED
     new_app = query_db("SELECT * FROM applications WHERE id = ?", (app_id,), one=True)
+    if not new_app:
+        print(f"[ERROR] Application not found after creation: {app_id}")
+        return jsonify({'error': 'Application was not saved properly. Please try again.'}), 500
+    
+    print(f"[Application Verified] Application saved successfully: {app_id}")
     return jsonify({
         'message': 'Application & Enrollment submitted successfully! Your official offer letter has been generated and sent to your email.',
         'application': new_app,

@@ -1,232 +1,96 @@
-/* ============================================================================
-   MOBILE APP STYLESHEET - Transform web experience into native app feel
-   ============================================================================ */
-
-/* Meta: Enable fullscreen, no zoom */
-@media (max-width: 768px) {
-  html {
-    -webkit-user-scalable: no;
-    user-scalable: no;
-  }
-}
-
-/* ============================================================================
-   GLOBAL MOBILE APP STYLES
-   ============================================================================ */
+/* Mobile App - Bug Fixes Only */
 
 @media (max-width: 768px) {
-  body {
-    margin: 0;
-    padding: 0;
-    height: 100vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    background: #fff;
-  }
-
-  /* Safe area for notch devices */
-  body {
-    padding-top: max(0px, env(safe-area-inset-top));
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  /* Remove desktop elements */
-  header .desktop-nav-links {
-    display: none;
-  }
-
-  /* Full height scrollable content */
+  body { margin: 0; padding: 0; overflow-x: hidden; }
+  
   main {
-    flex: 1;
+    display: block;
+    width: 100%;
+    margin-top: 60px;
+    margin-bottom: 70px;
+    min-height: calc(100vh - 130px);
     overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch; /* Smooth momentum scrolling on iOS */
-    padding-top: 60px; /* Account for fixed header */
-    padding-bottom: 70px; /* Account for bottom navigation if exists */
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
+    padding: 0;
   }
 
-  /* Hide desktop footer on mobile app */
-  footer {
-    display: none;
-  }
-}
-
-/* ============================================================================
-   HEADER - Mobile App Bar Style
-   ============================================================================ */
-
-@media (max-width: 768px) {
+  footer { display: none; }
+  
   .header {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
+    width: 100%;
     height: 60px;
-    background: linear-gradient(135deg, #0B3D91 0%, #1D4ED8 100%);
-    box-shadow: 0 2px 8px rgba(11, 61, 145, 0.15);
     z-index: 1000;
-    padding: max(env(safe-area-inset-top), 0) 0 0 0;
+    box-sizing: border-box;
   }
-
+  
   .header-container {
     height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     padding: 0 16px;
+    box-sizing: border-box;
+    margin: 0;
   }
-
-  .header-logo img {
-    height: 36px;
-  }
-
-  .header-actions {
-    display: none;
-  }
-
+  
   .hamburger-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    margin: 0;
     background: none;
     border: none;
-    color: white;
     cursor: pointer;
-    padding: 0;
   }
-
-  .hamburger-btn i {
-    width: 24px;
-    height: 24px;
-  }
-}
-
-/* ============================================================================
-   MOBILE NAVIGATION DRAWER - App-like sidebar
-   ============================================================================ */
-
-@media (max-width: 768px) {
+  
   .mobile-nav-panel {
     position: fixed;
-    top: 0;
+    top: 60px;
     left: 0;
     width: 280px;
-    height: 100vh;
-    background: #FFFFFF;
-    box-shadow: 2px 0 16px rgba(0, 0, 0, 0.1);
-    padding-top: max(60px + env(safe-area-inset-top), 60px);
-    z-index: 999;
+    height: calc(100vh - 130px);
     transform: translateX(-100%);
     transition: transform 0.3s ease;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    z-index: 999;
+    background: white;
   }
-
+  
   .mobile-nav-panel.active {
     transform: translateX(0);
   }
-
-  .mobile-search-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 16px;
-    margin: 12px 16px;
-    background: #F3F4F6;
-    border-radius: 24px;
-    margin-bottom: 20px;
-  }
-
-  .mobile-search-input {
-    flex: 1;
-    border: none;
-    background: none;
-    font-size: 14px;
-    font-family: 'Inter', sans-serif;
-    outline: none;
-  }
-
-  .mobile-links-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
-
+  
   .mobile-link {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 20px;
+    width: 100%;
+    padding: 14px 20px;
     border: none;
-    background: none;
-    text-decoration: none;
-    color: #1F2937;
-    font-size: 16px;
-    font-weight: 500;
-    border-bottom: 1px solid #F3F4F6;
+    background: transparent;
+    text-align: left;
     cursor: pointer;
-    transition: background 0.2s ease;
+    box-sizing: border-box;
   }
-
-  .mobile-link:active {
-    background: #F9FAFB;
-  }
-
-  .mobile-link:hover {
-    background: #F3F4F6;
-  }
-
-  .mobile-actions {
-    padding: 20px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    border-top: 1px solid #F3F4F6;
-    margin-top: 20px;
-  }
-
-  .mobile-actions .btn {
-    padding: 12px 16px;
-    font-size: 14px;
-  }
-
-  /* Overlay backdrop */
-  .mobile-nav-panel.active::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.3);
-    z-index: -1;
-  }
-}
-
-/* ============================================================================
-   BOTTOM NAVIGATION - iOS/Android App-style bottom tab bar
-   ============================================================================ */
-
-@media (max-width: 768px) {
+  
   .bottom-nav {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
+    width: 100%;
     height: 70px;
-    background: white;
-    border-top: 1px solid #E5E7EB;
     display: flex;
     justify-content: space-around;
-    align-items: flex-start;
-    padding-top: 8px;
-    padding-bottom: max(8px, env(safe-area-inset-bottom));
+    align-items: center;
+    border-top: 1px solid #e5e7eb;
+    background: white;
     z-index: 900;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
   }
-
+  
   .bottom-nav-item {
     flex: 1;
     display: flex;
@@ -234,345 +98,159 @@
     align-items: center;
     justify-content: center;
     gap: 4px;
-    text-decoration: none;
-    color: #9CA3AF;
-    font-size: 11px;
-    font-weight: 500;
+    height: 70px;
+    border: none;
+    background: transparent;
     cursor: pointer;
-    transition: color 0.2s ease;
+    color: #9ca3af;
+    text-decoration: none;
+    font-size: 11px;
   }
-
-  .bottom-nav-item:active,
+  
   .bottom-nav-item.active {
-    color: #0B3D91;
+    color: #0b3d91;
   }
-
-  .bottom-nav-item i {
-    width: 24px;
-    height: 24px;
-  }
-}
-
-/* ============================================================================
-   CARDS & CONTAINERS - Mobile-optimized spacing
-   ============================================================================ */
-
-@media (max-width: 768px) {
+  
   .container {
-    padding: 0 16px;
+    width: 100%;
+    padding: 16px;
+    box-sizing: border-box;
     margin: 0;
   }
-
-  /* Remove large gaps on mobile */
-  .card {
-    border-radius: 12px;
-    margin-bottom: 12px;
-  }
-
-  /* Full-width buttons on mobile */
+  
   .btn {
-    min-height: 44px; /* Touch-friendly size */
-    font-size: 14px;
-    border-radius: 10px;
-  }
-
-  .btn-full {
+    min-height: 44px;
+    padding: 12px 16px;
     width: 100%;
+    box-sizing: border-box;
+    border-radius: 10px;
+    border: none;
+    font-size: 14px;
+    cursor: pointer;
   }
-}
-
-/* ============================================================================
-   FORMS - Mobile-optimized input fields
-   ============================================================================ */
-
-@media (max-width: 768px) {
-  input,
-  textarea,
-  select {
-    min-height: 44px; /* Touch-friendly */
-    font-size: 16px; /* Prevent iOS zoom on focus */
-    border-radius: 8px;
+  
+  input, textarea, select {
+    min-height: 44px;
+    font-size: 16px;
     padding: 12px;
-  }
-
-  input:focus,
-  textarea:focus,
-  select:focus {
-    outline: 2px solid #0B3D91;
-    outline-offset: 2px;
-  }
-
-  /* Prevent iOS keyboard from pushing content */
-  input[type="text"],
-  input[type="email"],
-  input[type="password"],
-  input[type="tel"],
-  input[type="number"] {
+    width: 100%;
+    box-sizing: border-box;
     -webkit-appearance: none;
     appearance: none;
   }
 }
 
+
 /* ============================================================================
-   MODAL & DIALOGS - Mobile fullscreen style
+   MORE MENU BOTTOM SHEET - Popup for additional options
    ============================================================================ */
 
 @media (max-width: 768px) {
-  .modal-overlay {
+  .more-menu-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 950;
     display: none;
-    align-items: center;
-    justify-content: center;
-    z-index: 1100;
-    overflow-y: auto;
+    opacity: 0;
+    transition: opacity 0.3s ease;
   }
 
-  .modal-overlay.active {
+  .more-menu-overlay.active {
     display: flex;
+    opacity: 1;
+    align-items: flex-end;
   }
 
-  .modal-card {
-    background: white;
+  .more-menu-sheet {
     width: 100%;
-    max-width: 100%;
-    margin: 16px;
-    border-radius: 16px;
-    max-height: 90vh;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    animation: slideUp 0.3s ease;
-  }
-
-  @keyframes slideUp {
-    from {
-      transform: translateY(100%);
-      opacity: 0;
-    }
-    to {
-      transform: translateY(0);
-      opacity: 1;
-    }
-  }
-}
-
-/* ============================================================================
-   TOAST NOTIFICATIONS - Mobile-optimized
-   ============================================================================ */
-
-@media (max-width: 768px) {
-  .toast-container {
-    position: fixed;
-    top: 80px;
-    left: 12px;
-    right: 12px;
-    z-index: 1200;
-  }
-
-  .toast {
-    margin-bottom: 12px;
-    border-radius: 10px;
-    padding: 12px 16px;
-    font-size: 14px;
-    animation: slideInDown 0.3s ease;
-  }
-
-  @keyframes slideInDown {
-    from {
-      transform: translateY(-20px);
-      opacity: 0;
-    }
-    to {
-      transform: translateY(0);
-      opacity: 1;
-    }
-  }
-}
-
-/* ============================================================================
-   INTERNSHIP CARDS - Mobile grid layout
-   ============================================================================ */
-
-@media (max-width: 768px) {
-  .internship-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-
-  .internship-card {
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  }
-
-  .internship-card:active {
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-  }
-
-  .internship-card img {
-    width: 100%;
-    height: 180px;
-    object-fit: cover;
-  }
-}
-
-/* ============================================================================
-   DASHBOARD - Mobile layout
-   ============================================================================ */
-
-@media (max-width: 768px) {
-  .dashboard-header {
-    padding: 20px 16px;
-    background: linear-gradient(135deg, #0B3D91 0%, #1D4ED8 100%);
-    color: white;
-    border-radius: 0;
-    margin-top: 0;
-  }
-
-  .dashboard-stats {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin: 20px 0;
-  }
-
-  .stat-card {
-    padding: 16px;
-    border-radius: 12px;
     background: white;
-    border: 1px solid #E5E7EB;
-    text-align: center;
-  }
-
-  .applications-list {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-
-  .application-item {
-    padding: 16px;
-    border-radius: 12px;
-    background: white;
-    border: 1px solid #E5E7EB;
-    cursor: pointer;
-  }
-
-  .application-item:active {
-    background: #F9FAFB;
-  }
-}
-
-/* ============================================================================
-   STATUS BAR - Safe areas for iPhone notch
-   ============================================================================ */
-
-@media (max-width: 768px) and (orientation: landscape) {
-  .header {
-    height: 50px;
-  }
-
-  .header-container {
-    height: 50px;
-  }
-
-  main {
-    padding-top: 50px;
-  }
-}
-
-/* ============================================================================
-   SCROLL BEHAVIOR - Mobile smooth scrolling
-   ============================================================================ */
-
-@media (max-width: 768px) {
-  * {
-    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
-  }
-
-  a, button {
-    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
-  }
-
-  main,
-  .mobile-nav-panel {
-    -webkit-overflow-scrolling: touch;
-  }
-}
-
-/* ============================================================================
-   HIDE SCROLL-TO-TOP ON MOBILE
-   ============================================================================ */
-
-@media (max-width: 768px) {
-  .scroll-top-btn {
-    display: none;
-  }
-}
-
-/* ============================================================================
-   RESPONSIVENESS TWEAKS
-   ============================================================================ */
-
-/* Extra small phones (< 375px) */
-@media (max-width: 374px) {
-  .container {
-    padding: 0 12px;
-  }
-
-  .header-container {
-    padding: 0 12px;
-  }
-
-  .mobile-nav-panel {
-    width: 100%;
-  }
-}
-
-/* Tablets in portrait (768px - 1024px) - keep desktop-like but allow mobile tweaks */
-@media (min-width: 769px) and (max-width: 1024px) {
-  .bottom-nav {
-    display: none;
-  }
-
-  main {
-    padding-bottom: 0;
-  }
-}
-
-/* Landscape mode adjustments */
-@media (max-width: 768px) and (orientation: landscape) {
-  main {
-    padding-top: 50px;
-    padding-bottom: 0;
-  }
-
-  .bottom-nav {
-    display: none;
-  }
-}
-
-/* ============================================================================
-   PRINT MEDIA - Don't print navigation
-   ============================================================================ */
-
-@media print {
-  .header,
-  .mobile-nav-panel,
-  .bottom-nav,
-  footer,
-  .scroll-top-btn {
-    display: none;
-  }
-
-  main {
+    border-radius: 20px 20px 0 0;
     padding: 0;
     margin: 0;
+    max-height: 70vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    animation: slideUpSheet 0.3s ease;
+  }
+
+  @keyframes slideUpSheet {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
+  .more-menu-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    flex-shrink: 0;
+  }
+
+  .more-menu-header h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  .more-menu-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+  }
+
+  .more-menu-close i {
+    width: 20px;
+    height: 20px;
+  }
+
+  .more-menu-items {
+    padding: 12px 0;
+  }
+
+  .more-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    border: none;
+    background: transparent;
+    text-decoration: none;
+    color: #1f2937;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: left;
+  }
+
+  .more-menu-item:active {
+    background-color: #f3f4f6;
+  }
+
+  .more-menu-item i {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .more-menu-item span {
+    flex: 1;
   }
 }

@@ -94,8 +94,56 @@ class MobileAppManager {
     if (menuTrigger) {
       menuTrigger.addEventListener('click', (e) => {
         e.preventDefault();
-        this.toggleDrawer();
+        this.toggleMoreMenu();
       });
+    }
+
+    // Setup more menu close button
+    const moreMenuClose = document.getElementById('more-menu-close');
+    if (moreMenuClose) {
+      moreMenuClose.addEventListener('click', () => this.closeMoreMenu());
+    }
+
+    // Close more menu when clicking overlay
+    const moreMenuOverlay = document.getElementById('more-menu-overlay');
+    if (moreMenuOverlay) {
+      moreMenuOverlay.addEventListener('click', (e) => {
+        if (e.target === moreMenuOverlay) {
+          this.closeMoreMenu();
+        }
+      });
+    }
+
+    // Setup logout button
+    const logoutBtn = document.getElementById('more-menu-logout');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', () => {
+        this.handleLogout();
+      });
+    }
+  }
+
+  toggleMoreMenu() {
+    const overlay = document.getElementById('more-menu-overlay');
+    if (overlay) {
+      overlay.classList.toggle('active');
+    }
+  }
+
+  closeMoreMenu() {
+    const overlay = document.getElementById('more-menu-overlay');
+    if (overlay) {
+      overlay.classList.remove('active');
+    }
+  }
+
+  handleLogout() {
+    if (confirm('Are you sure you want to logout?')) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user_profile');
+      this.closeMoreMenu();
+      window.location.hash = '#/';
+      window.location.reload();
     }
   }
 
