@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="/css/main.css">
   <link rel="stylesheet" href="/css/components.css">
   <link rel="stylesheet" href="/css/utilities.css">
+  <link rel="stylesheet" href="/css/mobile-app.css">
 
   <!-- Supabase JS Client -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -92,6 +93,26 @@
   <!-- Main View Router Container -->
   <main id="app-view"></main>
 
+  <!-- Bottom Navigation (Mobile App Bar) -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <a href="#/" class="bottom-nav-item active" data-route="home">
+      <i data-feather="home"></i>
+      <span>Home</span>
+    </a>
+    <a href="#/internships" class="bottom-nav-item" data-route="internships">
+      <i data-feather="briefcase"></i>
+      <span>Explore</span>
+    </a>
+    <a href="#/dashboard" class="bottom-nav-item" data-route="dashboard">
+      <i data-feather="user"></i>
+      <span>Profile</span>
+    </a>
+    <a href="#/" class="bottom-nav-item" data-route="menu" id="bottom-nav-menu">
+      <i data-feather="more-vertical"></i>
+      <span>More</span>
+    </a>
+  </nav>
+
   <!-- Footer -->
   <footer style="background-color: var(--color-blue-dark); color: var(--color-white); padding: 64px 0 32px 0;">
     <div class="container">
@@ -168,6 +189,7 @@
   <script src="/js/views/authViews.js"></script>
   <script src="/js/views/adminView.js"></script>
   <script src="/js/views/staticViews.js"></script>
+  <script src="/js/mobile-app.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>
