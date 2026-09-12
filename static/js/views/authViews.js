@@ -254,6 +254,16 @@ const AuthViews = {
         API.setCurrentUser(res.user);
         HeaderComponent.updateAuthState();
 
+        // Restore user's persistent account data from IndexedDB
+        if (Storage && res.user && res.user.id) {
+          try {
+            const accountData = await Storage.restoreUserAccount(res.user.id);
+            console.log('[Auth] Account data restored:', accountData);
+          } catch (err) {
+            console.warn('[Auth] Failed to restore account data:', err);
+          }
+        }
+
         Toast.show('Login successful!', 'success');
 
         const params = new URLSearchParams(window.location.hash.split('?')[1] || '');

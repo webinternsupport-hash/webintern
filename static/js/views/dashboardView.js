@@ -92,7 +92,58 @@ const DashboardView = {
 
   async loadApplications() {
     try {
-      const res = await API.request('/api/applications/me');
+      const user = API.getCurrentUser();
+      const container = document.getElementById('dashboard-apps-list');
+      if (!container) return;
+      
+      // First, show persistent data from IndexedDB (if available)
+      let persistedApps = [];
+      if (Storage && user && user.id) {
+        try {
+          persistedApps = await Storage.getUserEnrollments(user.id);
+          console.log('[Dashboard] Loaded persisted enrollments:', persistedApps.length);
+        } catch (err) {
+          console.warn('[Dashboard] Failed to load persisted data:', err);
+        }
+      }
+      
+      // Try to fetch fresh data from server
+      let serverApps = [];
+      try {
+        const res = await API.request('/api/applications/me');
+        serverApps = res.applications || [];
+        
+        // Save server data to IndexedDB for future offline access
+        if (Storage && user && user.id) {
+          for (const app of serverApps) {
+            const enrollment = {
+              userId: user.id,
+              internshipId: app.internship_id || app.id,
+              internshipTitle: app.internship_title,
+              companyName: app.company_name || '',
+              sectorName: app.sector_name,
+              status: app.status || 'active',
+              progress: app.progress_percent || 0,
+              enrolledAt: app.applied_at || new Date().toISOString(),
+              startDate: app.start_date,
+              endDate: app.end_date,
+              serverData: app // Store full server data for reference
+            };
+            try {
+              await Storage.saveEnrollment(enrollment);
+            } catch (err) {
+              console.warn('[Storage] Failed to save enrollment:', err);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[Dashboard] Failed to fetch fresh data, using persisted:', err);
+      }
+      
+      // Use server data if available, otherwise use persisted data
+      const applicationsToDisplay = serverApps.length > 0 ? serverApps : persistedApps;
+      
+      const res = { applications: applicationsToDisplay };
       const container = document.getElementById('dashboard-apps-list');
       if (!container) return;
 
