@@ -45,7 +45,7 @@ const API = {
     }
   },
 
-  async request(endpoint, options = {}) {
+  async request(endpoint, options = {}, retryCount = 0) {
     const headers = {
       'Content-Type': 'application/json',
       ...options.headers
@@ -82,6 +82,19 @@ const API = {
           data = JSON.parse(text);
         } catch (e) {
           data = { message: text };
+        }
+      }
+
+      // Handle token expiration
+      if (response.status === 401 && data?.code === 'INVALID_TOKEN') {
+        console.warn('[Token Expired] Clearing auth data');
+        this.setAuthToken(null);
+        this.setCurrentUser(null);
+        
+        // Redirect to login
+        if (!endpoint.includes('/api/auth/')) {
+          window.location.hash = '#/login';
+          throw new Error('Session expired. Please login again.');
         }
       }
 

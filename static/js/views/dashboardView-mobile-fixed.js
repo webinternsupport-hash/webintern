@@ -112,26 +112,6 @@ const DashboardView = {
       container.innerHTML = res.applications.map(app => {
         const isCompleted = app.status === 'completed' || app.completion_status === 'completed';
         const isPaid = Boolean(app.is_verified_paid == 1 || app.is_verified_paid === true || app.paid);
-        
-        // Calculate pending days
-        const endDate = app.end_date ? new Date(app.end_date) : null;
-        const today = new Date();
-        let daysRemaining = null;
-        if (endDate) {
-          const diffTime = endDate.getTime() - today.getTime();
-          daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        }
-        
-        // Determine certificate status message
-        let certStatusMsg = '⏳ Pending Tasks';
-        let certStatusColor = '#EAB308'; // yellow
-        if (isCompleted && !isPaid) {
-          certStatusMsg = '💳 Pay ₹199 to Unlock';
-          certStatusColor = '#F59E0B'; // orange
-        } else if (isCompleted && isPaid) {
-          certStatusMsg = '✅ Ready to Download';
-          certStatusColor = '#10B981'; // green
-        }
 
         return `
           <div class="application-card">
@@ -156,16 +136,6 @@ const DashboardView = {
               </div>
             </div>
 
-            <!-- Certificate Status Banner -->
-            <div style="margin-top: 10px; background: #F9FAFB; border-left: 3px solid ${certStatusColor}; padding: 8px; border-radius: 4px; font-size: 12px; color: #374151;">
-              <strong style="color: ${certStatusColor};">${certStatusMsg}</strong>
-              ${daysRemaining !== null && daysRemaining > 0 && !isCompleted ? `
-                <span style="font-size: 11px; color: #6B7280; display: block; margin-top: 3px;">
-                  📅 ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining
-                </span>
-              ` : ''}
-            </div>
-
             <!-- Status & Actions -->
             <div style="margin-top: 12px;">
               <p style="font-size: 12px; color: var(--color-gray-text); margin-bottom: 10px;">
@@ -176,11 +146,11 @@ const DashboardView = {
                   📄 Offer
                 </a>
                 ${isPaid && isCompleted && app.certificate_id ? `
-                  <a href="/api/certificates/${app.certificate_id}/pdf" target="_blank" class="btn btn-primary btn-sm" style="flex: 1; text-align: center; background: #10B981 !important; color: white !important; font-size: 12px;">
+                  <a href="/api/certificates/${app.certificate_id}/pdf" target="_blank" class="btn btn-primary btn-sm" style="flex: 1; text-align: center; background: #2E7DFF !important; color: white !important; font-size: 12px;">
                     🏆 Cert
                   </a>
                 ` : `
-                  <button onclick="DashboardView.handleCertificateClick('${app.id}')" class="btn btn-primary btn-sm" style="flex: 1; background: ${certStatusColor} !important; color: white !important; font-size: 12px;">
+                  <button onclick="DashboardView.handleCertificateClick('${app.id}')" class="btn btn-primary btn-sm" style="flex: 1; background: #2E7DFF !important; color: white !important; font-size: 12px;">
                     🏆 Cert
                   </button>
                 `}
@@ -212,33 +182,24 @@ const DashboardView = {
 
       container.innerHTML = `
         <div style="background: var(--color-white); border-radius: 12px; border: 1px solid var(--color-border); padding: 16px; overflow-x: auto;">
-          <h2 style="font-size: 18px; color: var(--color-blue-dark); margin-bottom: 16px;">📋 My Official Documents</h2>
+          <h2 style="font-size: 18px; color: var(--color-blue-dark); margin-bottom: 16px;">My Official Documents</h2>
           
           <div style="display: flex; flex-direction: column; gap: 12px;">
             ${res.applications.map(app => {
               const isCompleted = app.status === 'completed' || app.completion_status === 'completed';
               const isPaid = Boolean(app.is_verified_paid == 1 || app.is_verified_paid === true || app.paid);
-              
-              // Calculate pending days
-              const endDate = app.end_date ? new Date(app.end_date) : null;
-              const today = new Date();
-              let daysRemaining = null;
-              if (endDate) {
-                const diffTime = endDate.getTime() - today.getTime();
-                daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-              }
 
               return `
                 <div style="border: 1px solid var(--color-border); border-radius: 10px; padding: 12px; background: #F8FAFC;">
                   <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap;">
                     <div style="flex: 1;">
-                      <h3 style="font-size: 14px; color: var(--color-blue-dark); margin: 0 0 4px 0;">📄 Internship Offer Letter</h3>
+                      <h3 style="font-size: 14px; color: var(--color-blue-dark); margin: 0 0 4px 0;">Internship Offer Letter</h3>
                       <p style="font-size: 12px; color: var(--color-gray-text); margin: 0;">${app.internship_title}</p>
-                      <span style="font-size: 10px; font-weight: 700; color: #10B981; background: #D1FAE5; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-top: 6px;">✅ ISSUED</span>
+                      <span style="font-size: 10px; font-weight: 700; color: #10B981; background: #D1FAE5; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-top: 6px;">ISSUED</span>
                     </div>
                     <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
-                      <a href="/api/applications/${app.id}/offer-letter.pdf" target="_blank" class="btn btn-outline btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px;">👁️ View</a>
-                      <a href="/api/applications/${app.id}/offer-letter.pdf" download class="btn btn-primary btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px; background: #2E7DFF !important;">⬇️ Download</a>
+                      <a href="/api/applications/${app.id}/offer-letter.pdf" target="_blank" class="btn btn-outline btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px;">View</a>
+                      <a href="/api/applications/${app.id}/offer-letter.pdf" download class="btn btn-primary btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px; background: #2E7DFF !important;">Download</a>
                     </div>
                   </div>
                 </div>
@@ -246,28 +207,22 @@ const DashboardView = {
                 <div style="border: 1px solid var(--color-border); border-radius: 10px; padding: 12px; background: #F8FAFC;">
                   <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap;">
                     <div style="flex: 1;">
-                      <h3 style="font-size: 14px; color: var(--color-blue-dark); margin: 0 0 4px 0;">🏆 Internship Certificate</h3>
+                      <h3 style="font-size: 14px; color: var(--color-blue-dark); margin: 0 0 4px 0;">Certificate</h3>
                       <p style="font-size: 12px; color: var(--color-gray-text); margin: 0;">${app.internship_title}</p>
                       ${isPaid && isCompleted && app.certificate_id ? `
-                        <span style="font-size: 10px; font-weight: 700; color: #10B981; background: #D1FAE5; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-top: 6px;">✅ ISSUED & PAID</span>
+                        <span style="font-size: 10px; font-weight: 700; color: #0B3D91; background: #EAF1FB; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-top: 6px;">ISSUED & PAID</span>
                       ` : isPaid ? `
-                        <span style="font-size: 10px; font-weight: 700; color: #D97706; background: #FEF3C7; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-top: 6px;">🟠 PAID - PENDING COMPLETION</span>
-                        ${daysRemaining !== null && daysRemaining > 0 ? `
-                          <p style="font-size: 10px; color: #92400E; margin: 4px 0 0 0;">⏳ ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining to complete all tasks</p>
-                        ` : ''}
+                        <span style="font-size: 10px; font-weight: 700; color: #D97706; background: #FEF3C7; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-top: 6px;">PAID - PENDING</span>
                       ` : `
-                        <span style="font-size: 10px; font-weight: 700; color: #475569; background: #E2E8F0; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-top: 6px;">⏳ PENDING</span>
-                        ${daysRemaining !== null && daysRemaining > 0 ? `
-                          <p style="font-size: 10px; color: #334155; margin: 4px 0 0 0;">📅 Complete internship in ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}, then pay ₹199</p>
-                        ` : ''}
+                        <span style="font-size: 10px; font-weight: 700; color: #475569; background: #E2E8F0; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-top: 6px;">PENDING</span>
                       `}
                     </div>
                     <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
                       ${isPaid && isCompleted && app.certificate_id ? `
-                        <a href="/api/certificates/${app.certificate_id}/pdf" target="_blank" class="btn btn-outline btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px;">👁️ View</a>
-                        <a href="/api/certificates/${app.certificate_id}/pdf" download class="btn btn-primary btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px; background: #10B981 !important;">⬇️ Download</a>
+                        <a href="/api/certificates/${app.certificate_id}/pdf" target="_blank" class="btn btn-outline btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px;">View</a>
+                        <a href="/api/certificates/${app.certificate_id}/pdf" download class="btn btn-primary btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px; background: #2E7DFF !important;">Download</a>
                       ` : `
-                        <button onclick="DashboardView.handleCertificateClick('${app.id}')" class="btn btn-primary btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px; background: #D97706 !important;">💳 Get Certificate</button>
+                        <button onclick="DashboardView.handleCertificateClick('${app.id}')" class="btn btn-primary btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px; background: #2E7DFF !important;">Get Certificate</button>
                       `}
                     </div>
                   </div>
@@ -314,12 +269,6 @@ const DashboardView = {
       const res = await API.request(`/api/applications/${appId}`);
       const app = res.application;
 
-      // Ensure tasks exist
-      if (!app.tasks || app.tasks.length === 0) {
-        Toast.show('No tasks found for this internship. Tasks are being prepared.', 'warning');
-        return;
-      }
-
       let html = `
         <div style="max-width: 100%; font-family: inherit;">
           <div style="position: sticky; top: -28px; background: #FFFFFF; z-index: 10; margin: -28px -28px 16px -28px; padding: 12px 16px; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;">
@@ -332,13 +281,13 @@ const DashboardView = {
           </div>
 
           <div style="margin-bottom: 16px;">
-            <h2 style="font-size: 18px; color: var(--color-blue-dark); margin-bottom: 6px;">📝 Task Workspace</h2>
+            <h2 style="font-size: 18px; color: var(--color-blue-dark); margin-bottom: 6px;">Task Workspace</h2>
             <p style="color: var(--color-gray-text); font-size: 13px; margin: 0; line-height: 1.4;">
               Upload your weekly PDF assignment deliverables (Max 10MB per module) for mentor review and grading.
             </p>
           </div>
 
-          <div style="display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px;">
+          <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px;">
             ${app.tasks.map(t => {
               const sub = t.submission;
               const subStatus = sub ? sub.status : 'NOT_SUBMITTED';
@@ -348,75 +297,49 @@ const DashboardView = {
               if (['revise', 'rejected', 'late'].includes(subStatus.toLowerCase())) badgeColor = '#EF4444';
 
               return `
-                <div class="task-card" style="background: #FFFFFF; border: 1px solid #E5E7EB; border-radius: 8px; padding: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                  <!-- Task Header -->
-                  <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
-                    <div>
-                      <strong style="font-size: 14px; color: var(--color-blue-dark);">📌 Week ${t.week_number}: ${t.title}</strong>
-                      <p style="font-size: 11px; color: #6B7280; margin: 4px 0 0 0;">${t.objective || 'Complete assignment'}</p>
-                    </div>
-                    <span style="font-size: 10px; font-weight: 700; color: white; background: ${badgeColor}; padding: 4px 10px; border-radius: 4px; text-transform: uppercase; white-space: nowrap;">
+                <div class="task-card">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+                    <strong style="font-size: 14px; color: var(--color-blue-dark);">Week ${t.week_number}: ${t.title}</strong>
+                    ${sub && sub.file_url ? `
+                      <a href="${sub.file_url}" target="_blank" style="font-size: 11px; color: #2E7DFF; text-decoration: underline;">📄 PDF</a>
+                    ` : ''}
+                    <span style="font-size: 10px; font-weight: 700; color: white; background: ${badgeColor}; padding: 3px 8px; border-radius: 4px; text-transform: uppercase;">
                       ${subStatus.replace('_', ' ')}
                     </span>
                   </div>
+                  <p style="font-size: 12px; color: var(--color-gray-text); margin-bottom: 10px; line-height: 1.4;">
+                    <strong>Deliverables:</strong> ${t.deliverables}
+                  </p>
 
-                  <!-- Deliverables Section -->
-                  <div style="background: #F3F4F6; padding: 10px; border-radius: 6px; margin-bottom: 10px; font-size: 12px; line-height: 1.5; color: #374151;">
-                    <strong style="color: #0B3D91;">✓ Deliverables:</strong> ${t.deliverables}
-                  </div>
-
-                  <!-- Key Steps Section -->
-                  ${t.key_steps ? `
-                    <div style="background: #EFF6FF; border-left: 3px solid #2E7DFF; padding: 10px; border-radius: 4px; margin-bottom: 10px; font-size: 11px; line-height: 1.5; color: #1E3A8A;">
-                      <strong>📋 Task Steps:</strong>
-                      <pre style="margin: 4px 0 0 0; white-space: pre-wrap; word-wrap: break-word; font-size: 11px; font-family: monospace; color: #374151;">
-${t.key_steps.substring(0, 300).trim()}${t.key_steps.length > 300 ? '...' : ''}
-                      </pre>
-                    </div>
-                  ` : ''}
-
-                  <!-- Submitted Work Display -->
                   ${sub && sub.marks !== null && sub.marks !== undefined ? `
                     <div style="font-size: 12px; background: #ECFDF5; border-left: 4px solid #10B981; padding: 10px; margin: 10px 0; color: #065F46; border-radius: 4px; line-height: 1.5;">
                       <div style="font-weight: 700; margin-bottom: 4px;">🏆 Marks: ${sub.marks} / ${sub.max_marks || 10}</div>
-                      <div style="white-space: pre-wrap; font-size: 11px;">${(sub.feedback || 'Assignment successfully evaluated.').substring(0, 200)}</div>
-                      ${sub.file_url ? `<a href="${sub.file_url}" target="_blank" style="font-size: 10px; color: #059669; text-decoration: underline; display: block; margin-top: 4px;">📄 View Submitted PDF</a>` : ''}
-                    </div>
-                  ` : sub && sub.file_url ? `
-                    <div style="background: #DBEAFE; border-left: 4px solid #3B82F6; padding: 10px; margin: 10px 0; color: #1E40AF; border-radius: 4px; font-size: 11px;">
-                      ✅ Submitted (Awaiting review)
-                      <a href="${sub.file_url}" target="_blank" style="font-size: 10px; color: #1E40AF; text-decoration: underline; display: block; margin-top: 4px;">📄 View Submitted PDF</a>
+                      <div style="white-space: pre-wrap; font-size: 11px;">${(sub.feedback || 'Assignment successfully evaluated.').substring(0, 150)}</div>
                     </div>
                   ` : ''}
 
-                  <!-- Upload Form -->
-                  <form onsubmit="DashboardView.submitPdfFile(event, '${app.id}', ${t.week_number})" style="margin-top: 10px; background: #F8FAFC; padding: 12px; border-radius: 6px; border: 2px dashed #BFDBFE;">
-                    <div style="display: flex; gap: 8px; align-items: flex-start; flex-direction: column;">
-                      <label style="font-size: 12px; font-weight: 600; color: #374151;">📤 Upload PDF Assignment:</label>
-                      <input type="file" id="pdf-file-${t.week_number}" accept=".pdf,application/pdf" class="form-input" style="font-size: 12px; padding: 8px; width: 100%; border: 1px solid #D1D5DB; border-radius: 4px; box-sizing: border-box;" required />
-                      <div style="display: flex; gap: 8px; width: 100%;">
-                        <button type="submit" class="btn btn-primary btn-sm" style="flex: 1; padding: 8px 12px; font-size: 12px; background: #0B3D91 !important; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                          📤 Upload & Submit
-                        </button>
-                        <button type="reset" class="btn btn-outline btn-sm" style="flex: 1; padding: 8px 12px; font-size: 12px; border: 1px solid #D1D5DB; border-radius: 4px; cursor: pointer;">
-                          Clear
-                        </button>
-                      </div>
-                      <span style="font-size: 10px; color: #64748B;">PDF files only, max 10MB. Must include all deliverables.</span>
+                  <form onsubmit="DashboardView.submitPdfFile(event, '${app.id}', ${t.week_number})" style="margin-top: 10px; background: #F8FAFC; padding: 10px; border-radius: 6px; border: 1px dashed var(--color-border);">
+                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                      <input type="file" id="pdf-file-${t.week_number}" accept=".pdf,application/pdf" class="form-input" style="font-size: 12px; padding: 8px; flex: 1; min-width: 150px;" />
+                      <button type="submit" class="btn btn-primary btn-sm" style="white-space: nowrap; padding: 6px 12px; font-size: 11px; min-height: 36px;">
+                        Upload
+                      </button>
                     </div>
+                    <span style="font-size: 10px; color: #64748B; margin-top: 4px; display: block;">
+                      PDF only, max 10MB
+                    </span>
                   </form>
                 </div>
               `;
             }).join('')}
           </div>
 
-          <!-- Footer -->
-          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px; border-top: 1px solid var(--color-border); background: #F9FAFB; border-radius: 6px; margin-top: 16px; flex-wrap: wrap;">
-            <button onclick="Modals.close()" class="btn btn-outline btn-sm" style="flex: 1; font-size: 12px; min-width: 100px;">
-              ✕ Close
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 12px; border-top: 1px solid var(--color-border); flex-wrap: wrap;">
+            <button onclick="Modals.close()" class="btn btn-outline btn-sm" style="flex: 1; font-size: 12px;">
+              Close
             </button>
-            <button onclick="Modals.openRazorpayCheckout('${app.id}')" class="btn btn-primary btn-sm" style="flex: 1; background-color: #D97706 !important; border-color: #B45309 !important; color: white !important; font-size: 12px; min-width: 120px;">
-              💳 Pay ₹199 (Certificate)
+            <button onclick="Modals.openRazorpayCheckout('${app.id}')" class="btn btn-primary btn-sm" style="flex: 1; background-color: #D97706 !important; border-color: #B45309 !important; color: white !important; font-size: 12px;">
+              💳 Pay ₹199
             </button>
           </div>
         </div>
@@ -424,7 +347,6 @@ ${t.key_steps.substring(0, 300).trim()}${t.key_steps.length > 300 ? '...' : ''}
 
       Modals.open(html);
     } catch (e) {
-      console.error("openWorkspace error:", e);
       Toast.show(e.message || 'Failed to open workspace.', 'error');
     }
   },
@@ -432,26 +354,20 @@ ${t.key_steps.substring(0, 300).trim()}${t.key_steps.length > 300 ? '...' : ''}
   async submitPdfFile(event, appId, weekNumber) {
     event.preventDefault();
     const fileInput = document.getElementById(`pdf-file-${weekNumber}`);
-    
     if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
       Toast.show('Please select a PDF file to upload.', 'error');
       return;
     }
 
     const file = fileInput.files[0];
-    
     if (!file.name.toLowerCase().endsWith('.pdf')) {
-      Toast.show('❌ Only PDF files (.pdf) are allowed.', 'error');
+      Toast.show('Only PDF files (.pdf) are allowed.', 'error');
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      Toast.show('❌ File size exceeds 10MB limit. Your file: ' + (file.size / (1024 * 1024)).toFixed(2) + 'MB', 'error');
+      Toast.show('File size exceeds 10MB limit.', 'error');
       return;
-    }
-
-    if (file.size < 10 * 1024) {
-      Toast.show('⚠️ File seems too small (< 10KB). Please ensure you uploaded the correct file.', 'warning');
     }
 
     const formData = new FormData();
@@ -460,7 +376,7 @@ ${t.key_steps.substring(0, 300).trim()}${t.key_steps.length > 300 ? '...' : ''}
     formData.append('file', file);
 
     try {
-      Toast.show(`📤 Uploading Week ${weekNumber} assignment PDF...`, 'info');
+      Toast.show(`Uploading Week ${weekNumber} assignment PDF...`, 'info');
       const token = localStorage.getItem('access_token');
       const res = await fetch('/api/submissions/upload', {
         method: 'POST',
@@ -468,19 +384,15 @@ ${t.key_steps.substring(0, 300).trim()}${t.key_steps.length > 300 ? '...' : ''}
         body: formData
       });
       const data = await res.json();
-      
       if (res.ok) {
-        Toast.show('✅ ' + (data.message || 'Assignment PDF uploaded successfully!'), 'success');
-        setTimeout(() => {
-          Modals.close();
-          this.loadApplications();
-        }, 1000);
+        Toast.show(data.message || 'Assignment PDF uploaded successfully!', 'success');
+        Modals.close();
+        this.loadApplications();
       } else {
-        Toast.show('❌ ' + (data.error || 'PDF upload failed. Try again.'), 'error');
+        Toast.show(data.error || 'PDF upload failed.', 'error');
       }
     } catch (e) {
-      console.error("submitPdfFile error:", e);
-      Toast.show('❌ ' + (e.message || 'Network error during upload.'), 'error');
+      Toast.show(e.message || 'Task upload failed.', 'error');
     }
   }
 };

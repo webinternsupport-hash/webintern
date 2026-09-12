@@ -15,29 +15,27 @@ const ExploreView = {
     if (!container) return;
 
     container.innerHTML = `
-      <section class="section-padding" style="background-color: var(--color-gray-bg); min-height: 80vh;">
+      <section class="section-padding" style="background-color: var(--color-gray-bg); min-height: calc(100vh - 130px);">
         <div class="container">
-          <div style="text-align: center; max-width: 700px; margin: 0 auto 36px auto;">
-            <h1 style="font-size: 38px; color: var(--color-blue-dark); margin-bottom: 12px;">Browse Virtual Internships</h1>
-            <p style="color: var(--color-gray-text);">Explore sector-based 4-week internship programs, submit weekly deliverables, and earn verified industry credentials.</p>
+          <div style="text-align: center; max-width: 700px; margin: 0 auto 24px auto;">
+            <h1 style="font-size: 28px; color: var(--color-blue-dark); margin-bottom: 8px; line-height: 1.3;">Browse Internships</h1>
+            <p style="color: var(--color-gray-text); font-size: 14px;">Explore sector-based 4-week internship programs and earn verified credentials.</p>
           </div>
 
           <!-- Filter & Search Controls -->
-          <div style="background: var(--color-white); border-radius: var(--radius-lg); padding: 20px; border: 1px solid var(--color-border); margin-bottom: 36px;">
-            <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-              <div style="flex-grow: 1; min-width: 260px; max-width: 500px; display: flex; align-items: center; gap: 10px; background: var(--color-gray-bg); border: 1px solid var(--color-border); padding: 10px 16px; border-radius: var(--radius-full);">
-                <i data-feather="search" style="color: var(--color-gray-text); width: 18px; height: 18px; flex-shrink: 0;"></i>
-                <input type="text" id="explore-search-input" class="mobile-search-input" placeholder="Search internships by title or keyword..." value="${this.searchQuery}" style="width:100%; border:none; background:transparent; outline:none;" />
-                <button id="clear-search-btn" style="display:none; background:none; border:none; cursor:pointer; color:var(--color-gray-text); padding:0 4px;" title="Clear search">✕</button>
-              </div>
+          <div class="explore-filter-bar">
+            <div class="explore-search-box">
+              <i data-feather="search" style="color: var(--color-gray-text); width: 18px; height: 18px; flex-shrink: 0;"></i>
+              <input type="text" id="explore-search-input" placeholder="Search internships by title or keyword..." value="${this.searchQuery}" style="width:100%; border:none; background:transparent; outline:none; font-size: 14px;" />
+              <button id="clear-search-btn" style="display:none; background:none; border:none; cursor:pointer; color:var(--color-gray-text); padding:0 4px; font-weight: bold;" title="Clear search">✕</button>
+            </div>
 
-              <div id="results-count-summary" style="font-size: 14px; color: var(--color-gray-text); font-weight: 500;">
-                Loading internship listings...
-              </div>
+            <div id="results-count-summary" style="font-size: 13px; color: var(--color-gray-text); font-weight: 500; margin-top: 8px;">
+              Loading internship listings...
             </div>
 
             <!-- Sector Filter Tabs -->
-            <div style="display: flex; gap: 10px; align-items: center; overflow-x: auto; flex-wrap: wrap; padding-top: 4px;" id="sector-filter-tabs">
+            <div class="explore-sector-tabs" id="sector-filter-tabs">
               <button class="btn btn-sm btn-primary">Loading Sectors...</button>
             </div>
           </div>
@@ -48,7 +46,7 @@ const ExploreView = {
           </div>
 
           <!-- Pagination Bar -->
-          <div id="explore-pagination" style="margin-top: 40px; display: flex; justify-content: center; align-items: center; gap: 8px;"></div>
+          <div id="explore-pagination" style="margin-top: 20px; display: flex; justify-content: center; align-items: center; gap: 6px; flex-wrap: wrap;"></div>
         </div>
       </section>
     `;

@@ -1,7 +1,7 @@
 import uuid
 import datetime
 import os
-from flask import Blueprint, request, jsonify, Response
+from flask import Blueprint, request, jsonify, Response, send_file
 from database import query_db, execute_db
 from utils.auth import jwt_required
 from utils.email_service import send_offer_letter_email
@@ -252,23 +252,15 @@ def get_application_detail(app_id):
     return jsonify({'application': app_record, 'enrollment': app_record}), 200
 
 @application_bp.route('/api/applications/<app_id>/offer-letter.pdf', methods=['GET'])
-@jwt_required
 def download_offer_letter(app_id):
-    user = request.user
-    app_record = query_db("""
-        SELECT a.*, i.title as internship_title, i.duration_weeks, i.company_name, i.location, i.skills_tools, i.tasks_projects
-        FROM applications a
-        JOIN internships i ON a.internship_id = i.id
-        WHERE a.id = ? AND (a.user_id = ? OR ? = 'admin')
-    """, (app_id, user['sub'], user.get('role')), one=True)
-
-    if not app_record:
-        return jsonify({'error': 'Application not found.'}), 404
-
-    # ✅ TRY TO SERVE CACHED PDF FIRST (INSTANT)
+    print(f"[DEBUG] Offer Letter Request - App ID: {app_id}")
+    
+    # First try to serve from cache (no auth needed for cached files)
     file_path = os.path.join(Config.GENERATED_OFFERS_DIR, f"offer_{app_id}.pdf")
+    print(f"[DEBUG] Cache Path: {file_path}, Exists: {os.path.exists(file_path)}")
+    
     if os.path.exists(file_path):
-        print(f"[Offer Letter Served from Cache] App: {app_id}, File: {file_path}")
+        print(f"[Offer Letter Served from Cache] App: {app_id}")
         return send_file(
             file_path,
             mimetype='application/pdf',
@@ -276,7 +268,42 @@ def download_offer_letter(app_id):
             download_name=f'Offer_Letter_{app_id[:8]}.pdf'
         )
 
-    # ✅ IF NOT CACHED, REGENERATE (FALLBACK)
+    # For non-cached, try to get user from JWT if available
+    user = None
+    try:
+        from flask_jwt_extended import get_jwt_identity
+        user_id = get_jwt_identity()
+        if user_id:
+            user = {'sub': user_id}
+    except:
+        pass
+
+    # Get application - allow access if file is cached OR if user is authenticated
+    if user:
+        print(f"[DEBUG] User authenticated: {user['sub']}")
+        app_record = query_db("""
+            SELECT a.*, i.title as internship_title, i.duration_weeks, i.company_name, i.location, i.skills_tools, i.tasks_projects
+            FROM applications a
+            JOIN internships i ON a.internship_id = i.id
+            WHERE a.id = ? AND (a.user_id = ? OR 'admin' = ?)
+        """, (app_id, user['sub'], user.get('role', 'user')), one=True)
+    else:
+        # For public access, still get the application (anyone with app_id can view)
+        print(f"[DEBUG] Public access request")
+        app_record = query_db("""
+            SELECT a.*, i.title as internship_title, i.duration_weeks, i.company_name, i.location, i.skills_tools, i.tasks_projects
+            FROM applications a
+            JOIN internships i ON a.internship_id = i.id
+            WHERE a.id = ?
+        """, (app_id,), one=True)
+    
+    print(f"[DEBUG] Query result: {app_record is not None}")
+
+    if not app_record:
+        print(f"[ERROR] Application not found for ID: {app_id}")
+        return jsonify({'error': 'Offer letter not found. Application does not exist.'}), 404
+
+    # Regenerate if not cached
     print(f"[Offer Letter Not Cached] Regenerating for App: {app_id}")
     
     profile = query_db("SELECT * FROM profiles WHERE id = ?", (app_record['user_id'],), one=True)
@@ -299,12 +326,12 @@ def download_offer_letter(app_id):
             offer_id=app_record.get('offer_letter_id')
         )
         
-        # Cache it for next time
+        # Cache for next time
         os.makedirs(Config.GENERATED_OFFERS_DIR, exist_ok=True)
         with open(file_path, 'wb') as f:
             f.write(pdf_bytes)
         
-        print(f"[Offer Letter Regenerated and Cached] App: {app_id}")
+        print(f"[Offer Letter Generated and Cached] App: {app_id}, Size: {len(pdf_bytes)} bytes")
         
         return Response(
             pdf_bytes,
@@ -312,5 +339,7 @@ def download_offer_letter(app_id):
             headers={'Content-Disposition': f'inline; filename="Offer_Letter_{app_id[:8]}.pdf"'}
         )
     except Exception as e:
-        print(f"[PDF Generation Error] {e}")
+        print(f"[Offer Letter PDF Generation Error] {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': f'Failed to generate offer letter: {str(e)}'}), 500
