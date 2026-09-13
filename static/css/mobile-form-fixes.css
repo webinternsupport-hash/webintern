@@ -2,7 +2,7 @@
    MOBILE FORM FIXES - Registration & Checkboxes
    ======================================== */
 
-/* Checkbox styling for mobile */
+/* Checkbox styling for mobile - CRITICAL FIX */
 input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
@@ -19,6 +19,9 @@ input[type="checkbox"] {
   position: relative;
   transition: all 0.2s ease;
   accent-color: #0B3D91;
+  pointer-events: auto !important;
+  z-index: 10;
+  touch-action: manipulation;
 }
 
 /* Checked state */
@@ -49,7 +52,7 @@ input[type="checkbox"]:disabled {
   cursor: not-allowed;
 }
 
-/* Checkbox label styling for mobile */
+/* Checkbox label styling for mobile - CRITICAL FIX */
 .checkbox-label {
   display: flex;
   align-items: flex-start;
@@ -63,6 +66,15 @@ input[type="checkbox"]:disabled {
   user-select: none;
   border-radius: 4px;
   transition: background-color 0.2s ease;
+  pointer-events: auto !important;
+}
+
+/* Checkbox inside label - ensure it's always clickable */
+.checkbox-label input[type="checkbox"] {
+  pointer-events: auto !important;
+  z-index: 10;
+  flex-shrink: 0;
+  margin-top: 0;
 }
 
 /* Checkbox label hover state */
@@ -77,6 +89,7 @@ input[type="checkbox"]:disabled {
   hyphens: auto;
   flex: 1;
   line-height: 1.5;
+  pointer-events: none;
 }
 
 /* Form group for checkboxes */
