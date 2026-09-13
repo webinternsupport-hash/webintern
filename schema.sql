@@ -49,8 +49,13 @@ CREATE TABLE IF NOT EXISTS internships (
   mode TEXT DEFAULT 'Virtual',
   cover_image_url TEXT,
   is_featured BOOLEAN DEFAULT FALSE,
+  emoji TEXT DEFAULT '💼',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Add indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_internships_sector ON internships(sector_id);
+CREATE INDEX IF NOT EXISTS idx_internships_featured ON internships(is_featured);
 
 CREATE TABLE IF NOT EXISTS internship_tasks (
   id VARCHAR(36) PRIMARY KEY,
@@ -69,8 +74,26 @@ CREATE TABLE IF NOT EXISTS applications (
   internship_id VARCHAR(36) REFERENCES internships(id),
   status TEXT DEFAULT 'active', -- active, completed, withdrawn
   offer_letter_sent BOOLEAN DEFAULT FALSE,
-  applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  start_date TEXT,
+  end_date TEXT,
+  duration_weeks INT DEFAULT 4,
+  completed_weeks INT DEFAULT 0,
+  progress_percent INT DEFAULT 0,
+  internship_title TEXT,
+  sector_name TEXT,
+  internship_emoji TEXT DEFAULT '💼',
+  offer_letter_id TEXT,
+  certificate_id TEXT,
+  completion_status TEXT DEFAULT 'pending'
 );
+
+-- Add indexes for better performance
+CREATE INDEX IF NOT EXISTS idx_applications_user ON applications(user_id);
+CREATE INDEX IF NOT EXISTS idx_applications_internship ON applications(internship_id);
+CREATE INDEX IF NOT EXISTS idx_applications_status ON applications(status);
+CREATE INDEX IF NOT EXISTS idx_applications_offer_letter ON applications(offer_letter_id);
+CREATE INDEX IF NOT EXISTS idx_applications_certificate ON applications(certificate_id);
 
 CREATE TABLE IF NOT EXISTS submissions (
   id VARCHAR(36) PRIMARY KEY,

@@ -8,6 +8,7 @@ from utils.auth import jwt_required, relink_user_data_by_email
 from utils.email_service import send_offer_letter_email
 from utils.pdf_generator import generate_offer_letter_pdf
 from utils.google_sheets_service import sync_offer_letter_to_google_sheets
+from utils.supabase_sync import sync_enrollment_to_supabase
 from config import Config
 
 application_bp = Blueprint('application_bp', __name__)
@@ -60,6 +61,19 @@ def create_application():
     except Exception as e:
         print(f"[Application Creation Error] {e}")
         return jsonify({'error': f'Failed to save application: {str(e)}'}), 500
+
+    # ✅ SYNC TO SUPABASE
+    try:
+        sync_enrollment_to_supabase(user['sub'], {
+            'internship_id': internship_id,
+            'status': 'active',
+            'start_date': start_date_str,
+            'end_date': end_date_str,
+            'offer_letter_id': offer_id,
+            'certificate_id': cert_id
+        })
+    except Exception as e:
+        print(f"[Supabase Sync Warning] {e}")
 
     # Fetch user profile to populate Master Internship Record
     profile = query_db("SELECT * FROM profiles WHERE id = ?", (user['sub'],), one=True)
@@ -209,9 +223,14 @@ def get_my_applications():
                COALESCE(i.slug, '') as internship_slug, 
                COALESCE(i.duration_weeks, 4) as duration_weeks, 
                COALESCE(i.cover_image_url, '') as cover_image_url,
+               COALESCE(i.company_name, 'Web Intern Platform') as company_name,
+               COALESCE(i.location, 'Virtual') as location,
+               COALESCE(i.skills_tools, '') as skills_tools,
+               COALESCE(i.tasks_projects, '') as tasks_projects,
                COALESCE(s.name, 'Unknown Sector') as sector_name, 
                c.id as certificate_id, 
-               c.is_verified_paid
+               c.is_verified_paid,
+               CASE WHEN c.is_verified_paid = 1 THEN 1 ELSE 0 END as paid
         FROM applications a
         LEFT JOIN internships i ON a.internship_id = i.id
         LEFT JOIN sectors s ON i.sector_id = s.id

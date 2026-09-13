@@ -8,6 +8,7 @@ from utils.razorpay_service import create_razorpay_order, verify_razorpay_signat
 from utils.pdf_generator import generate_certificate_pdf
 from utils.email_service import send_certificate_email
 from utils.google_sheets_service import sync_certificate_to_google_sheets
+from utils.supabase_sync import sync_payment_to_supabase, sync_certificate_to_supabase
 from config import Config
 
 payment_bp = Blueprint('payment_bp', __name__)
@@ -91,6 +92,17 @@ def _process_successful_certificate_payment(payment_rec):
             INSERT INTO certificates (id, application_id, certificate_url, is_verified_paid)
             VALUES (?, ?, ?, 1)
         """, (cert_db_id, app_id, cert_url))
+        
+        # ✅ SYNC CERTIFICATE TO SUPABASE
+        try:
+            sync_certificate_to_supabase(user_id, app_id, {
+                'certificate_url': cert_url,
+                'certificate_number': cert_id,
+                'is_verified': True,
+                'issued_at': datetime.datetime.now().isoformat()
+            })
+        except Exception as e:
+            print(f"[Supabase Sync Warning] Certificate sync failed: {e}")
 
     # Update application record
     execute_db("""
@@ -266,6 +278,21 @@ def verify_payment():
             WHERE razorpay_order_id = ?
         """, (razorpay_payment_id, razorpay_signature, razorpay_order_id))
         pmt = query_db("SELECT * FROM payments WHERE id = ?", (pmt['id'],), one=True)
+
+    # ✅ SYNC PAYMENT TO SUPABASE
+    try:
+        # Get application to link application_id
+        app_rec = query_db("SELECT id FROM applications WHERE user_id = ? ORDER BY applied_at DESC LIMIT 1", (user['sub'],), one=True)
+        if app_rec:
+            sync_payment_to_supabase(user['sub'], app_rec['id'], {
+                'razorpay_order_id': razorpay_order_id,
+                'razorpay_payment_id': razorpay_payment_id,
+                'razorpay_signature': razorpay_signature,
+                'amount_inr': pmt['amount_inr'],
+                'status': 'paid'
+            })
+    except Exception as e:
+        print(f"[Supabase Sync Warning] Payment sync failed: {e}")
 
     # Trigger Certificate generation, PDF save, Resend email dispatch & Google Sheets sync
     succ, cert_info = _process_successful_certificate_payment(pmt)

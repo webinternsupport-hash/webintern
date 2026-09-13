@@ -200,10 +200,15 @@ const Storage = {
       internshipTitle: enrollment.internshipTitle || '',
       companyName: enrollment.companyName || '',
       sectorName: enrollment.sectorName || '',
+      emoji: enrollment.emoji || '💼',
       status: enrollment.status || 'enrolled',
       progress: enrollment.progress || 0,
       enrolledAt: enrollment.enrolledAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      durationWeeks: enrollment.durationWeeks || 4,
+      completedWeeks: enrollment.completedWeeks || 0,
+      startDate: enrollment.startDate || '',
+      endDate: enrollment.endDate || '',
       ...enrollment
     };
     
