@@ -6,47 +6,72 @@ def _get_resend_key():
     return (Config.RESEND_API_KEY or "").strip()
 
 def _dispatch_email(to_email, subject, html_content, attachments=None):
+    print(f"\n{'='*60}")
+    print(f"[_dispatch_email] STARTING EMAIL SEND")
+    print(f"[_dispatch_email] To: {to_email}")
+    print(f"[_dispatch_email] Subject: {subject}")
+    print(f"[_dispatch_email] Attachments: {len(attachments) if attachments else 0}")
+    
     api_key = _get_resend_key()
     from_email = getattr(Config, 'RESEND_FROM_EMAIL', 'notifications@webintern.in') or 'notifications@webintern.in'
     
-    if api_key and not api_key.startswith("re_demo") and api_key not in ["", "your_resend_api_key"]:
-        url = "https://api.resend.com/emails"
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
-        }
+    print(f"[_dispatch_email] API Key configured: {bool(api_key)}")
+    print(f"[_dispatch_email] From email: {from_email}")
+    
+    # CRITICAL FIX: Check if API key is properly configured
+    if not api_key or api_key.startswith("re_demo") or api_key in ["", "your_resend_api_key"]:
+        print(f"[❌ EMAIL BLOCKED] RESEND API KEY NOT CONFIGURED!")
+        print(f"[❌ EMAIL BLOCKED] Email will NOT be sent to {to_email}")
+        print(f"[❌ EMAIL BLOCKED] Configure RESEND_API_KEY in .env file to enable real email sending")
+        print(f"{'='*60}\n")
+        return False, {"error": "Email service not configured", "status": "not_configured"}
+    
+    url = "https://api.resend.com/emails"
+    headers = {
+        "Authorization": f"Bearer {api_key[:10]}...",  # Log only first 10 chars for security
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "from": f"Web Intern <{from_email}>",
+        "to": [to_email] if isinstance(to_email, str) else to_email,
+        "subject": subject,
+        "html": html_content[:100] + "..." if len(html_content) > 100 else html_content
+    }
+    
+    if attachments:
+        payload["attachments"] = f"[{len(attachments)} file(s)]"
         
-        payload = {
+    print(f"[_dispatch_email] Payload preview: {payload}")
+    
+    try:
+        print(f"[_dispatch_email] POSTing to {url}")
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        res = requests.post(url, headers=headers, json={
             "from": f"Web Intern <{from_email}>",
             "to": [to_email] if isinstance(to_email, str) else to_email,
             "subject": subject,
-            "html": html_content
-        }
+            "html": html_content,
+            "attachments": attachments
+        }, timeout=10, verify=False)
         
-        if attachments:
-            payload["attachments"] = attachments
-            
-        try:
-            import urllib3
-            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-            res = requests.post(url, headers=headers, json=payload, timeout=10, verify=False)
-            if res.status_code in [200, 201]:
-                data = res.json()
-                print(f"[Resend Email Success]: Sent to {to_email}, ID: {data.get('id')}")
-                return True, data
-            else:
-                err_body = res.text
-                print(f"[Resend Email Error HTTP {res.status_code}]: {err_body}")
-                return False, f"Resend API error ({res.status_code}): {err_body}"
-        except Exception as e:
-            print(f"[Resend Email Exception]: {e}. Falling back to mock dispatch.")
-            return True, {"id": "resend_offline_msg_id_123", "status": "queued_offline"}
-    else:
-        print(f"\n================ [MOCK EMAIL DISPATCH] ================")
-        print(f"TO: {to_email}")
-        print(f"SUBJECT: {subject}")
-        print(f"=======================================================\n")
-        return True, {"id": "mock_msg_id_12345", "status": "mock_sent"}
+        print(f"[_dispatch_email] HTTP Status: {res.status_code}")
+        
+        if res.status_code in [200, 201]:
+            data = res.json()
+            print(f"[✅ EMAIL SENT] To: {to_email}, ID: {data.get('id')}")
+            print(f"{'='*60}\n")
+            return True, data
+        else:
+            err_body = res.text
+            print(f"[❌ EMAIL FAILED] HTTP {res.status_code}: {err_body}")
+            print(f"{'='*60}\n")
+            return False, f"Email service error ({res.status_code}): {err_body}"
+    except Exception as e:
+        print(f"[❌ EMAIL EXCEPTION] {type(e).__name__}: {e}")
+        print(f"{'='*60}\n")
+        return False, {"error": str(e), "status": "failed"}
 
 def send_forgot_password_email(to_email, reset_link=None, reset_code=None):
     subject = "Web Intern - Password Reset Request"
@@ -82,6 +107,7 @@ def send_forgot_password_email(to_email, reset_link=None, reset_code=None):
     return _dispatch_email(to_email, subject, html_content)
 
 def send_offer_letter_email(to_email, student_name, internship_title, pdf_bytes=None, start_date=None, end_date=None, duration="4 Weeks", offer_id=None):
+    print(f"[Offer Letter Email] Starting email dispatch to {to_email}")
     subject = "Your WebIntern Internship Offer Letter"
     eff_start = start_date or "Immediate"
     eff_end = end_date or "4 Weeks from Start Date"
@@ -112,14 +138,20 @@ def send_offer_letter_email(to_email, student_name, internship_title, pdf_bytes=
     
     attachments = None
     if pdf_bytes:
+        print(f"[Offer Letter Email] PDF attached, size: {len(pdf_bytes)} bytes")
         clean_offer_id = str(eff_offer_id).replace('/', '_')
         encoded_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
         attachments = [{
             "filename": f"WebIntern_Offer_Letter_{clean_offer_id}.pdf",
             "content": encoded_pdf
         }]
+    else:
+        print(f"[⚠️ Offer Letter Email] No PDF provided - email will be sent without attachment")
 
-    return _dispatch_email(to_email, subject, html_content, attachments=attachments)
+    print(f"[Offer Letter Email] Calling _dispatch_email to {to_email}")
+    result = _dispatch_email(to_email, subject, html_content, attachments=attachments)
+    print(f"[Offer Letter Email] Result: {result}")
+    return result
 
 def send_certificate_email(to_email, student_name, internship_title, cert_id, pdf_bytes=None, start_date=None, end_date=None, verification_url=None):
     subject = "Your WebIntern Internship Completion Certificate"

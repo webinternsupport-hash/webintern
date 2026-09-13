@@ -17,13 +17,29 @@ const ExploreView = {
     container.innerHTML = `
       <section class="section-padding" style="background-color: var(--color-gray-bg); min-height: calc(100vh - 130px);">
         <div class="container">
-          <div style="text-align: center; max-width: 700px; margin: 0 auto 24px auto;">
+          <!-- Header Section -->
+          <div style="text-align: center; max-width: 700px; margin: 0 auto 32px auto;">
             <h1 style="font-size: 28px; color: var(--color-blue-dark); margin-bottom: 8px; line-height: 1.3;">Browse Internships</h1>
             <p style="color: var(--color-gray-text); font-size: 14px;">Explore sector-based 4-week internship programs and earn verified credentials.</p>
           </div>
 
-          <!-- Filter & Search Controls -->
-          <div class="explore-filter-bar">
+          <!-- Sector Filter Tabs - At Top, Collapsible -->
+          <div style="margin-bottom: 24px;">
+            <button id="filter-toggle-btn" class="btn btn-outline btn-sm" style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+              <i data-feather="filter" style="width: 16px; height: 16px;"></i>
+              <span>Filter by Sector</span>
+              <i data-feather="chevron-down" id="filter-chevron" style="width: 16px; height: 16px;"></i>
+            </button>
+            
+            <div id="sector-filter-tabs-container" style="display: none; background: white; padding: 16px; border-radius: 10px; border: 1px solid var(--color-border); margin-bottom: 16px; overflow-x: auto;">
+              <div class="explore-sector-tabs" id="sector-filter-tabs" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn btn-sm btn-primary">Loading Sectors...</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Search Box -->
+          <div class="explore-filter-bar" style="margin-bottom: 24px;">
             <div class="explore-search-box">
               <i data-feather="search" style="color: var(--color-gray-text); width: 18px; height: 18px; flex-shrink: 0;"></i>
               <input type="text" id="explore-search-input" placeholder="Search internships by title or keyword..." value="${this.searchQuery}" style="width:100%; border:none; background:transparent; outline:none; font-size: 14px;" />
@@ -33,15 +49,10 @@ const ExploreView = {
             <div id="results-count-summary" style="font-size: 13px; color: var(--color-gray-text); font-weight: 500; margin-top: 8px;">
               Loading internship listings...
             </div>
-
-            <!-- Sector Filter Tabs -->
-            <div class="explore-sector-tabs" id="sector-filter-tabs">
-              <button class="btn btn-sm btn-primary">Loading Sectors...</button>
-            </div>
           </div>
 
-          <!-- Cards Grid -->
-          <div class="cards-grid" id="explore-internships-grid">
+          <!-- Horizontal Internships Grid -->
+          <div class="cards-grid" id="explore-internships-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px;">
             ${this.getSkeletonCardsHTML()}
           </div>
 
@@ -52,6 +63,24 @@ const ExploreView = {
     `;
 
     if (window.feather) feather.replace();
+
+    // Toggle Filter Visibility
+    const filterToggleBtn = document.getElementById('filter-toggle-btn');
+    const filterContainer = document.getElementById('sector-filter-tabs-container');
+    const filterChevron = document.getElementById('filter-chevron');
+    
+    if (filterToggleBtn && filterContainer) {
+      filterToggleBtn.addEventListener('click', () => {
+        const isHidden = filterContainer.style.display === 'none';
+        filterContainer.style.display = isHidden ? 'block' : 'none';
+        
+        // Rotate chevron
+        if (filterChevron) {
+          filterChevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+          filterChevron.style.transition = 'transform 0.3s ease';
+        }
+      });
+    }
 
     // Bind Search Input with 300ms Debounce
     const searchInput = document.getElementById('explore-search-input');

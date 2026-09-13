@@ -7,18 +7,33 @@ from config import Config
 from seed_all_database import SECTORS_DATA, slugify
 
 def get_db_connection():
-    conn = sqlite3.connect(Config.SQLITE_DB_PATH, timeout=30.0)
-    conn.row_factory = sqlite3.Row
+    db_path = Config.SQLITE_DB_PATH
+    print(f"[DB Connection] Opening database: {db_path}")
+    
     try:
+        conn = sqlite3.connect(db_path, timeout=30.0)
+        conn.row_factory = sqlite3.Row
+        
         is_serverless = os.getenv("VERCEL") == "1" or os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
+        
         if not is_serverless:
             conn.execute("PRAGMA journal_mode=WAL;")
             conn.execute("PRAGMA synchronous=NORMAL;")
+            print("[DB] WAL mode enabled (local environment)")
         else:
             conn.execute("PRAGMA journal_mode=DELETE;")
-    except Exception:
-        pass
-    return conn
+            print("[DB] DELETE mode enabled (serverless environment)")
+            
+        # CRITICAL FIX: Verify database has tables after opening
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = cursor.fetchall()
+        print(f"[DB] Tables found: {len(tables)}")
+        
+        return conn
+    except Exception as e:
+        print(f"[DB Error] Failed to connect: {e}")
+        raise
 
 def ensure_migrations(cursor):
     """Ensure all extended tables, indexes, and columns exist for ultra-fast performance."""

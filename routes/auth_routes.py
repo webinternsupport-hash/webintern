@@ -256,49 +256,56 @@ def register_user():
 def login_user():
     """Login user with Email and Password using Local DB and Supabase Auth."""
     data = request.get_json() or {}
-    email = data.get('email', '').strip().lower()
+    email = data.get('email', '').strip().lower()  # CRITICAL: Normalize email to lowercase
     password = data.get('password', '')
 
     if not email or not password:
         return jsonify({'error': 'Email address and password are required.'}), 400
 
-    # 1. Check local SQLite DB first
-    local_profile = query_db("SELECT * FROM profiles WHERE email = ?", (email,), one=True)
+    # 1. Check local SQLite DB first - with proper email normalization
+    local_profile = query_db("SELECT * FROM profiles WHERE LOWER(email) = LOWER(?)", (email,), one=True)
     if local_profile and local_profile.get('password_hash'):
-        if bcrypt.checkpw(password.encode('utf-8'), local_profile['password_hash'].encode('utf-8')):
-            token = generate_jwt({
-                'sub': local_profile['id'],
-                'email': email,
-                'name': local_profile['full_name'],
-                'role': 'student'
-            })
-
-            relink_user_data_by_email(local_profile['id'], email)
-
-            sync_user_login_to_google_sheets({
-                'id': local_profile['id'],
-                'full_name': local_profile['full_name'],
-                'email': email,
-                'mobile': local_profile.get('phone') or local_profile.get('mobile') or '',
-                'college': local_profile.get('college', ''),
-                'auth_provider': 'email'
-            })
-
-            resp = make_response(jsonify({
-                'message': 'Login successful.',
-                'token': token,
-                'user': {
-                    'id': local_profile['id'],
+        # CRITICAL FIX: Only attempt bcrypt if password_hash exists
+        try:
+            if bcrypt.checkpw(password.encode('utf-8'), local_profile['password_hash'].encode('utf-8')):
+                token = generate_jwt({
+                    'sub': local_profile['id'],
                     'email': email,
+                    'name': local_profile['full_name'],
+                    'role': 'student'
+                })
+
+                relink_user_data_by_email(local_profile['id'], email)
+
+                sync_user_login_to_google_sheets({
+                    'id': local_profile['id'],
                     'full_name': local_profile['full_name'],
+                    'email': email,
                     'mobile': local_profile.get('phone') or local_profile.get('mobile') or '',
                     'college': local_profile.get('college', ''),
-                    'profile_complete': True,
-                    'role': 'student'
-                }
-            }))
-            resp.set_cookie('access_token', token, httponly=True, samesite='Lax', max_age=86400)
-            return resp, 200
+                    'auth_provider': 'email'
+                })
+
+                resp = make_response(jsonify({
+                    'message': 'Login successful.',
+                    'token': token,
+                    'user': {
+                        'id': local_profile['id'],
+                        'email': email,
+                        'full_name': local_profile['full_name'],
+                        'mobile': local_profile.get('phone') or local_profile.get('mobile') or '',
+                        'college': local_profile.get('college', ''),
+                        'profile_complete': True,
+                        'role': 'student'
+                    }
+                }))
+                resp.set_cookie('access_token', token, httponly=True, samesite='Lax', max_age=86400)
+                return resp, 200
+            else:
+                return jsonify({'error': 'Invalid email or password.'}), 401
+        except Exception as e:
+            print(f"[Password Verification Error] {e}")
+            return jsonify({'error': 'Invalid email or password.'}), 401
 
     try:
         supabase_anon = get_supabase_anon()

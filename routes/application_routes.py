@@ -53,14 +53,20 @@ def create_application():
     # ✅ ENSURE APPLICATION IS SAVED WITH ALL FIELDS
     try:
         execute_db("""
-            INSERT INTO applications (id, user_id, internship_id, status, offer_letter_sent, start_date, end_date, offer_letter_id, certificate_id, completion_status)
-            VALUES (?, ?, ?, 'active', 1, ?, ?, ?, ?, 'pending')
+            INSERT INTO applications (id, user_id, internship_id, status, offer_letter_sent, start_date, end_date, offer_letter_id, certificate_id, completion_status, applied_at)
+            VALUES (?, ?, ?, 'active', 1, ?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP)
         """, (app_id, user['sub'], internship_id, start_date_str, end_date_str, offer_id, cert_id))
         
         print(f"[Application Created] ID: {app_id}, User: {user['sub']}, Internship: {internship_id}")
     except Exception as e:
         print(f"[Application Creation Error] {e}")
-        return jsonify({'error': f'Failed to save application: {str(e)}'}), 500
+        # Return user-friendly error
+        if 'UNIQUE constraint' in str(e):
+            return jsonify({'error': 'You have already applied for this internship.'}), 400
+        elif 'FOREIGN KEY constraint' in str(e):
+            return jsonify({'error': 'Invalid internship selected. Please try again.'}), 400
+        else:
+            return jsonify({'error': 'Failed to save application. Please try again.'}), 500
 
     # ✅ SYNC TO SUPABASE
     try:
@@ -155,7 +161,8 @@ def create_application():
     # Trigger transactional offer letter email (async in background thread for fast <100ms response)
     def _do_send_email():
         try:
-            send_offer_letter_email(
+            print(f"[Email Thread Start] Sending offer letter to {to_email}")
+            success, result = send_offer_letter_email(
                 to_email=to_email,
                 student_name=student_name,
                 internship_title=internship['title'],
@@ -165,10 +172,34 @@ def create_application():
                 duration=f"{duration_weeks} Weeks",
                 offer_id=offer_id
             )
+            
+            # Update email status in database
+            if success:
+                print(f"[✅ Email Success] Updated document record with SENT status")
+                execute_db("""
+                    UPDATE documents SET email_status = 'SENT', email_message_id = ?
+                    WHERE id = ?
+                """, (str(result.get('id', msg_id)), doc_id))
+            else:
+                print(f"[❌ Email Failed] {result}")
+                execute_db("""
+                    UPDATE documents SET email_status = 'FAILED', email_message_id = ?
+                    WHERE id = ?
+                """, (str(result), doc_id))
         except Exception as ex:
-            print(f"[Async Offer Email Warning]: {ex}")
+            print(f"[❌ Async Email Exception]: {ex}")
+            try:
+                execute_db("""
+                    UPDATE documents SET email_status = 'ERROR'
+                    WHERE id = ?
+                """, (doc_id,))
+            except:
+                pass
 
-    threading.Thread(target=_do_send_email, daemon=True).start()
+    # Start email thread with proper error handling
+    email_thread = threading.Thread(target=_do_send_email, daemon=False)
+    email_thread.start()
+    print(f"[Email Thread] Started for application {app_id}")
 
     # Trigger Google Sheets sync
     sync_offer_letter_to_google_sheets({
