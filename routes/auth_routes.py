@@ -5,7 +5,7 @@ import requests
 import bcrypt
 from flask import Blueprint, request, jsonify, make_response, render_template_string
 from database import query_db, execute_db
-from utils.auth import generate_jwt, check_password, jwt_required
+from utils.auth import generate_jwt, check_password, jwt_required, relink_user_data_by_email
 from utils.email_service import send_forgot_password_email, _dispatch_email
 from utils.google_sheets_service import sync_user_registration_to_google_sheets, sync_user_login_to_google_sheets
 from config import Config
@@ -211,6 +211,8 @@ def register_user():
             (user_id, full_name, email, phone, phone_country_code, college, department, degree, hashed_pwd, 1 if marketing_opt_in else 0)
         )
 
+        relink_user_data_by_email(user_id, email)
+
         sync_user_registration_to_google_sheets({
             'id': user_id,
             'full_name': full_name,
@@ -270,6 +272,8 @@ def login_user():
                 'name': local_profile['full_name'],
                 'role': 'student'
             })
+
+            relink_user_data_by_email(local_profile['id'], email)
 
             sync_user_login_to_google_sheets({
                 'id': local_profile['id'],
@@ -474,12 +478,38 @@ def google_oauth_callback():
                 'mobile': '',
                 'phone_verified': True,
                 'auth_provider': 'google',
+                'google_account_id': raw_user_id,
+                'sync_enabled': True,
                 'terms_accepted': True,
                 'marketing_opt_in': False,
                 'profile_complete': True
             }
             safe_upsert_profile(supabase_admin, profile)
             sync_profile_to_local_db(user_id, name, email)
+            # Also sync to local DB with Google account ID
+            from database import execute_db
+            try:
+                execute_db("""
+                    UPDATE profiles SET google_account_id = ?, auth_provider = 'google', sync_enabled = 1 
+                    WHERE id = ?
+                """, (raw_user_id, user_id))
+            except Exception as e:
+                print(f"[Warning] Could not update google_account_id: {e}")
+        else:
+            # Update Google account ID if not already set
+            if not profile.get('google_account_id'):
+                profile['google_account_id'] = raw_user_id
+                profile['auth_provider'] = 'google'
+                profile['sync_enabled'] = True
+                safe_upsert_profile(supabase_admin, profile)
+                from database import execute_db
+                try:
+                    execute_db("""
+                        UPDATE profiles SET google_account_id = ?, auth_provider = 'google', sync_enabled = 1 
+                        WHERE id = ?
+                    """, (raw_user_id, user_id))
+                except Exception as e:
+                    print(f"[Warning] Could not update google_account_id: {e}")
 
         app_token = generate_jwt({
             'sub': profile['id'],

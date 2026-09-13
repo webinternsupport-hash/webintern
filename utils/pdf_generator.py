@@ -13,18 +13,26 @@ from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 from config import Config
 
+_ASSET_CACHE = {}
+
 def _get_asset_path(filename):
-    """Find asset path in static/assets or fallback to BASE_DIR."""
+    """Find asset path in static/assets or fallback to BASE_DIR with in-memory caching."""
+    if filename in _ASSET_CACHE:
+        return _ASSET_CACHE[filename]
     base_dir = Config.BASE_DIR
     p1 = os.path.join(base_dir, "static", "assets", filename)
     if os.path.exists(p1):
+        _ASSET_CACHE[filename] = p1
         return p1
     p2 = os.path.join(base_dir, "public", "templates", filename)
     if os.path.exists(p2):
+        _ASSET_CACHE[filename] = p2
         return p2
     p3 = os.path.join(base_dir, filename)
     if os.path.exists(p3):
+        _ASSET_CACHE[filename] = p3
         return p3
+    _ASSET_CACHE[filename] = None
     return None
 
 def draw_offer_letter_canvas(canvas_obj, doc):

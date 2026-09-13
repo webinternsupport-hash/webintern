@@ -199,3 +199,48 @@ def sync_certificate_to_google_sheets(cert_payload, document_id=None):
                 execute_db("UPDATE documents SET sheets_synced = 0, sheets_error = ? WHERE id = ?", (err_msg, document_id))
 
     threading.Thread(target=_do_sync, daemon=True).start()
+
+def check_google_sheets_connection():
+    """
+    Check if Google Sheets Webhook is properly configured and reachable.
+    Returns a dict with connection status, message, and configuration details.
+    """
+    webhook_url = getattr(Config, 'GOOGLE_SHEETS_WEBHOOK_URL', '') or os.getenv("GOOGLE_SHEETS_WEBHOOK_URL", "")
+    
+    if not webhook_url:
+        return {
+            "status": "misconfigured",
+            "connected": False,
+            "message": "GOOGLE_SHEETS_WEBHOOK_URL is not set in environment or config.",
+            "webhook_url": None
+        }
+
+    try:
+        res = requests.get(webhook_url, timeout=5, allow_redirects=True)
+        if res.status_code == 200:
+            try:
+                data = res.json()
+            except Exception:
+                data = {"raw": res.text[:200]}
+            return {
+                "status": "connected",
+                "connected": True,
+                "message": "Google Sheets Webhook connection active and verified.",
+                "webhook_url": webhook_url[:40] + "...",
+                "response": data
+            }
+        else:
+            return {
+                "status": "error",
+                "connected": False,
+                "message": f"HTTP {res.status_code} from Google Sheets Webhook endpoint.",
+                "webhook_url": webhook_url[:40] + "..."
+            }
+    except Exception as e:
+        return {
+            "status": "disconnected",
+            "connected": False,
+            "message": f"Failed to connect to Google Sheets Webhook: {str(e)}",
+            "webhook_url": webhook_url[:40] + "..." if webhook_url else None
+        }
+

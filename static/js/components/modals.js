@@ -38,14 +38,15 @@ const Modals = {
     }
   },
 
-  async openRazorpayCheckout(certificateIdOrEnrollmentId) {
+  async openRazorpayCheckout(applicationIdOrCertificateId) {
     try {
       Toast.show('Generating secure Razorpay payment gateway order (₹199 Fee)...', 'info');
       const orderRes = await API.request('/api/payments/certificate/create-order', {
         method: 'POST',
         body: {
-          certificate_id: certificateIdOrEnrollmentId,
-          enrollment_id: certificateIdOrEnrollmentId
+          enrollment_id: applicationIdOrCertificateId,
+          application_id: applicationIdOrCertificateId,
+          certificate_id: applicationIdOrCertificateId
         }
       });
 
@@ -71,7 +72,8 @@ const Modals = {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
-                certificate_id: certificateIdOrEnrollmentId
+                enrollment_id: applicationIdOrCertificateId,
+                application_id: applicationIdOrCertificateId
               }
             });
             Toast.show(verifyRes.message || 'Payment Verified Successfully!', 'success');

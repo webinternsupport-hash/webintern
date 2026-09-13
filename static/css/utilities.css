@@ -130,18 +130,25 @@
 .checkbox-label {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  font-size: 13px;
-  color: var(--color-gray-text);
+  gap: 12px;
+  font-size: 14px;
+  color: var(--color-blue-dark);
   cursor: pointer;
-  user-select: none;
+  padding: 6px 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(0,0,0,0.05);
 }
 
 .checkbox-label input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
-  margin-top: 2px;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  flex-shrink: 0;
+  margin-top: 1px;
   accent-color: var(--color-primary-blue);
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
 /* Progress bar */

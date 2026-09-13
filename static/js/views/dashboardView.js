@@ -2,26 +2,32 @@
 const DashboardView = {
   render() {
     const user = API.getCurrentUser();
+    console.log('[Dashboard] Rendering for user:', user ? user.email : 'NOT LOGGED IN');
+    
     if (!user) {
+      console.warn('[Dashboard] No user found, redirecting to login');
       window.location.hash = '#/login';
       return;
     }
 
     const appEl = document.getElementById('app-view') || document.getElementById('app');
-    if (!appEl) return;
+    if (!appEl) {
+      console.error('[Dashboard] App view element not found');
+      return;
+    }
     appEl.innerHTML = `
       <section class="section" style="padding: 16px 0; background-color: var(--color-gray-bg); min-height: calc(100vh - 130px);">
         <div class="container">
-          <!-- Welcome Banner -->
-          <div class="welcome-banner">
+          <!-- Welcome Banner with Gradient -->
+          <div class="welcome-banner" style="background: linear-gradient(135deg, var(--color-blue-dark) 0%, var(--color-primary-blue) 100%); padding: 24px 16px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(8, 43, 102, 0.15);">
             <div>
               <h1 style="font-size: 22px; margin: 0; color: white; line-height: 1.3;">Welcome back! 👋</h1>
-              <p style="margin-top: 6px; opacity: 0.9; font-size: 14px; line-height: 1.5; color: white;">${user.name || user.email}</p>
-              <p style="margin-top: 6px; opacity: 0.85; font-size: 13px; line-height: 1.4; color: white;">Track your internships, submit assignments, and download certificates.</p>
+              <p style="margin-top: 6px; opacity: 0.95; font-size: 14px; line-height: 1.5; color: white;">${user.name || user.email}</p>
+              <p style="margin-top: 6px; opacity: 0.9; font-size: 13px; line-height: 1.4; color: white;">Track your internships, submit assignments, and download certificates.</p>
             </div>
-            <div class="tab-buttons" style="margin-top: 12px;">
-              <button onclick="DashboardView.switchTab('apps')" id="tab-btn-apps" class="tab-button" style="background: #FFFFFF; color: #082B66; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">My Internships</button>
-              <button onclick="DashboardView.switchTab('docs')" id="tab-btn-docs" class="tab-button" style="background: rgba(255,255,255,0.2); color: #FFFFFF; border: 1px solid rgba(255,255,255,0.3);">Documents</button>
+            <div class="tab-buttons" style="margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap;">
+              <button onclick="DashboardView.switchTab('apps')" id="tab-btn-apps" class="tab-button" style="flex: 1; min-width: 140px; padding: 10px 12px; font-size: 13px; font-weight: 700; border-radius: 8px; border: none; background: #FFFFFF; color: var(--color-primary-blue); box-shadow: 0 2px 8px rgba(0,0,0,0.15); cursor: pointer; transition: all 0.2s ease;">My Internships</button>
+              <button onclick="DashboardView.switchTab('docs')" id="tab-btn-docs" class="tab-button" style="flex: 1; min-width: 140px; padding: 10px 12px; font-size: 13px; font-weight: 700; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.2); color: #FFFFFF; cursor: pointer; transition: all 0.2s ease;">Documents</button>
             </div>
           </div>
 
@@ -92,8 +98,70 @@ const DashboardView = {
 
   async loadApplications() {
     try {
-      const res = await API.request('/api/applications/me');
+      const user = API.getCurrentUser();
+      console.log('[Dashboard] Current user:', user ? user.email : 'NO USER');
+      
       const container = document.getElementById('dashboard-apps-list');
+      if (!container) {
+        console.error('[Dashboard] Container not found!');
+        return;
+      }
+      
+      // First, show persistent data from IndexedDB (if available)
+      let persistedApps = [];
+      if (Storage && user && user.id) {
+        try {
+          persistedApps = await Storage.getUserEnrollments(user.id);
+          console.log('[Dashboard] Loaded persisted enrollments:', persistedApps.length);
+        } catch (err) {
+          console.warn('[Dashboard] Failed to load persisted data:', err);
+        }
+      }
+      
+      // Try to fetch fresh data from server
+      let serverApps = [];
+      try {
+        console.log('[Dashboard] Fetching applications from /api/applications/me');
+        const res = await API.request('/api/applications/me');
+        serverApps = res.applications || [];
+        console.log('[Dashboard] Received server apps:', serverApps.length);
+        
+        // Save server data to IndexedDB for future offline access
+        if (Storage && user && user.id) {
+          for (const app of serverApps) {
+            const enrollment = {
+              userId: user.id,
+              internshipId: app.internship_id || app.id,
+              internshipTitle: app.internship_title,
+              companyName: app.company_name || '',
+              sectorName: app.sector_name,
+              emoji: app.internship_emoji || app.emoji || '💼',
+              status: app.status || 'active',
+              progress: app.progress_percent || 0,
+              enrolledAt: app.applied_at || new Date().toISOString(),
+              startDate: app.start_date,
+              endDate: app.end_date,
+              durationWeeks: app.duration_weeks || 4,
+              completedWeeks: app.completed_weeks || 0,
+              serverData: app // Store full server data for reference
+            };
+            try {
+              await Storage.saveEnrollment(enrollment);
+            } catch (err) {
+              console.warn('[Storage] Failed to save enrollment:', err);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[Dashboard] Failed to fetch fresh data:', err);
+        console.warn('[Dashboard] Using persisted data instead');
+      }
+      
+      // Use server data if available, otherwise use persisted data
+      const applicationsToDisplay = serverApps.length > 0 ? serverApps : persistedApps;
+      
+      const res = { applications: applicationsToDisplay };
+      // Note: container was already retrieved at the start of loadApplications
       if (!container) return;
 
       if (!res.applications || res.applications.length === 0) {
@@ -112,6 +180,9 @@ const DashboardView = {
       container.innerHTML = res.applications.map(app => {
         const isCompleted = app.status === 'completed' || app.completion_status === 'completed';
         const isPaid = Boolean(app.is_verified_paid == 1 || app.is_verified_paid === true || app.paid);
+        
+        // Get emoji (from various possible sources)
+        const emoji = app.internship_emoji || app.emoji || '💼';
         
         // Calculate pending days
         const endDate = app.end_date ? new Date(app.end_date) : null;
@@ -134,13 +205,21 @@ const DashboardView = {
         }
 
         return `
-          <div class="application-card">
+          <div class="application-card" style="background: white; border-radius: 12px; border: 1px solid var(--color-border); padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);">
             <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
-              <div>
-                <span class="badge-sector">${app.sector_name}</span>
-                <h2 style="font-size: 18px; color: var(--color-blue-dark); margin: 8px 0 4px 0; line-height: 1.3;">${app.internship_title}</h2>
-                <p style="font-size: 12px; color: var(--color-gray-text); margin: 2px 0; line-height: 1.4;">
-                  Start: <strong>${app.start_date || 'N/A'}</strong> • End: <strong>${app.end_date || 'N/A'}</strong>
+              <div style="flex: 1;">
+                <!-- Emoji Bubble Display -->
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                  <div style="width: 48px; height: 48px; background: linear-gradient(135deg, var(--color-accent-blue) 0%, var(--color-primary-blue) 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 12px rgba(46, 125, 255, 0.3);">
+                    ${emoji}
+                  </div>
+                  <div style="flex: 1;">
+                    <span class="badge-sector" style="font-size: 11px; font-weight: 700; color: var(--color-primary-blue); background: var(--color-blue-light); padding: 2px 8px; border-radius: 4px; display: inline-block;">${app.sector_name}</span>
+                    <h2 style="font-size: 16px; color: var(--color-blue-dark); margin: 4px 0 2px 0; line-height: 1.3; font-weight: 700;">${app.internship_title}</h2>
+                  </div>
+                </div>
+                <p style="font-size: 11px; color: var(--color-gray-text); margin: 4px 0; line-height: 1.4;">
+                  📅 Start: <strong>${app.start_date || 'N/A'}</strong> • End: <strong>${app.end_date || 'N/A'}</strong>
                 </p>
               </div>
             </div>
@@ -157,10 +236,10 @@ const DashboardView = {
             </div>
 
             <!-- Certificate Status Banner -->
-            <div style="margin-top: 10px; background: #F9FAFB; border-left: 3px solid ${certStatusColor}; padding: 8px; border-radius: 4px; font-size: 12px; color: #374151;">
+            <div style="margin-top: 10px; background: #F9FAFB; border-left: 3px solid ${certStatusColor}; padding: 8px; border-radius: 4px; font-size: 12px; color: var(--color-gray-text);">
               <strong style="color: ${certStatusColor};">${certStatusMsg}</strong>
               ${daysRemaining !== null && daysRemaining > 0 && !isCompleted ? `
-                <span style="font-size: 11px; color: #6B7280; display: block; margin-top: 3px;">
+                <span style="font-size: 11px; color: var(--color-gray-text); display: block; margin-top: 3px;">
                   📅 ${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining
                 </span>
               ` : ''}
@@ -169,23 +248,23 @@ const DashboardView = {
             <!-- Status & Actions -->
             <div style="margin-top: 12px;">
               <p style="font-size: 12px; color: var(--color-gray-text); margin-bottom: 10px;">
-                Status: <strong style="color: #0B3D91;">${app.status || 'ACTIVE'}</strong>
+                Status: <strong style="color: var(--color-primary-blue);">${app.status || 'ACTIVE'}</strong>
               </p>
-              <div class="application-actions">
-                <a href="/api/applications/${app.id}/offer-letter.pdf" target="_blank" class="btn btn-outline btn-sm" style="flex: 1; text-align: center; font-size: 12px;">
-                  📄 Offer
+              <div class="application-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <a href="/api/applications/${app.id}/offer-letter.pdf" target="_blank" class="btn btn-outline btn-sm" style="flex: 1; min-width: 100px; text-align: center; font-size: 12px; padding: 8px 10px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+                  <i data-feather="download" style="width: 14px; height: 14px;"></i> Offer
                 </a>
                 ${isPaid && isCompleted && app.certificate_id ? `
-                  <a href="/api/certificates/${app.certificate_id}/pdf" target="_blank" class="btn btn-primary btn-sm" style="flex: 1; text-align: center; background: #10B981 !important; color: white !important; font-size: 12px;">
-                    🏆 Cert
+                  <a href="/api/certificates/${app.certificate_id}/pdf" target="_blank" class="btn btn-primary btn-sm" style="flex: 1; min-width: 100px; text-align: center; background: #10B981 !important; color: white !important; font-size: 12px; padding: 8px 10px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+                    <i data-feather="download" style="width: 14px; height: 14px;"></i> Cert
                   </a>
                 ` : `
-                  <button onclick="DashboardView.handleCertificateClick('${app.id}')" class="btn btn-primary btn-sm" style="flex: 1; background: ${certStatusColor} !important; color: white !important; font-size: 12px;">
-                    🏆 Cert
+                  <button onclick="DashboardView.handleCertificateClick('${app.id}')" class="btn btn-primary btn-sm" style="flex: 1; min-width: 100px; background: ${certStatusColor} !important; color: white !important; font-size: 12px; padding: 8px 10px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+                    <i data-feather="award" style="width: 14px; height: 14px;"></i> Cert
                   </button>
                 `}
-                <button onclick="DashboardView.openWorkspace('${app.id}')" class="btn btn-primary btn-sm" style="flex: 1; background: #0B3D91 !important; color: white !important; font-size: 12px;">
-                  ✏️ Tasks
+                <button onclick="DashboardView.openWorkspace('${app.id}')" class="btn btn-primary btn-sm" style="flex: 1; min-width: 100px; background: var(--color-primary-blue) !important; color: white !important; font-size: 12px; padding: 8px 10px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+                  <i data-feather="edit-3" style="width: 14px; height: 14px;"></i> Tasks
                 </button>
               </div>
             </div>
@@ -195,7 +274,17 @@ const DashboardView = {
 
       if (window.feather) feather.replace();
     } catch (e) {
-      console.error("Load applications error:", e);
+      console.error('[Dashboard] Load applications error:', e);
+      const container = document.getElementById('dashboard-apps-list');
+      if (container) {
+        container.innerHTML = `
+          <div class="no-data-state" style="padding: 40px 20px; text-align: center; color: #EF4444;">
+            <p style="font-weight: 700; margin-bottom: 8px;">Failed to Load Dashboard</p>
+            <p style="font-size: 14px; color: #666; margin-bottom: 16px;">${e.message || 'An error occurred'}</p>
+            <button onclick="location.reload()" class="btn btn-primary" style="font-size: 12px;">Reload Page</button>
+          </div>
+        `;
+      }
     }
   },
 
@@ -238,7 +327,7 @@ const DashboardView = {
                     </div>
                     <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
                       <a href="/api/applications/${app.id}/offer-letter.pdf" target="_blank" class="btn btn-outline btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px;">👁️ View</a>
-                      <a href="/api/applications/${app.id}/offer-letter.pdf" download class="btn btn-primary btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px; background: #2E7DFF !important;">⬇️ Download</a>
+                      <a href="/api/applications/${app.id}/offer-letter.pdf" download class="btn btn-primary btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px; background: var(--color-primary-blue) !important; display: flex; align-items: center; gap: 4px;"><i data-feather="download" style="width: 14px; height: 14px;"></i> Download</a>
                     </div>
                   </div>
                 </div>
@@ -265,7 +354,7 @@ const DashboardView = {
                     <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
                       ${isPaid && isCompleted && app.certificate_id ? `
                         <a href="/api/certificates/${app.certificate_id}/pdf" target="_blank" class="btn btn-outline btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px;">👁️ View</a>
-                        <a href="/api/certificates/${app.certificate_id}/pdf" download class="btn btn-primary btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px; background: #10B981 !important;">⬇️ Download</a>
+                        <a href="/api/certificates/${app.certificate_id}/pdf" download class="btn btn-primary btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px; background: var(--color-primary-blue) !important; display: flex; align-items: center; gap: 4px;"><i data-feather="download" style="width: 14px; height: 14px;"></i> Download</a>
                       ` : `
                         <button onclick="DashboardView.handleCertificateClick('${app.id}')" class="btn btn-primary btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px; background: #D97706 !important;">💳 Get Certificate</button>
                       `}

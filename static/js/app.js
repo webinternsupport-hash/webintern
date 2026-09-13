@@ -4,11 +4,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setupScrollToTop();
   handleRouting();
 
-  // Check Google OAuth callback session if returned from Supabase
-  if (window.location.hash.includes('access_token') || window.location.hash.includes('type=recovery') || window.location.search.includes('code=')) {
-    AuthViews.checkGoogleOAuthCallback();
-  }
-
   window.addEventListener('hashchange', handleRouting);
 });
 

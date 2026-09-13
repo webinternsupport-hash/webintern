@@ -96,6 +96,8 @@ const HeaderComponent = {
   },
 
   logout() {
+    // CRITICAL: Only clear session tokens, NOT persistent account data
+    // User's enrollments, certificates, and profile data remain in IndexedDB
     API.setAuthToken(null);
     API.setCurrentUser(null);
     Toast.show('You have logged out successfully.', 'info');

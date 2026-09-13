@@ -1,4 +1,5 @@
 // Web Intern REST API Client Wrapper & Supabase Client Init
+// Integrated with IndexedDB storage for persistent account data
 const API = {
   supabaseClient: null,
 
@@ -40,6 +41,21 @@ const API = {
   setCurrentUser(user) {
     if (user) {
       localStorage.setItem('user_profile', JSON.stringify(user));
+      
+      // Also save to IndexedDB for persistent account data
+      // This ties the account to this browser/device
+      if (Storage && user.id) {
+        Storage.saveUser({
+          userId: user.id || `user_${crypto.randomUUID()}`,
+          name: user.name || user.full_name || '',
+          email: user.email || '',
+          phone: user.phone || '',
+          college: user.college || '',
+          department: user.department || '',
+          degree: user.degree || '',
+          role: user.role || 'student'
+        }).catch(err => console.warn('[Storage] Failed to save user:', err));
+      }
     } else {
       localStorage.removeItem('user_profile');
     }

@@ -168,6 +168,51 @@ const DetailView = {
         method: 'POST',
         body: { internship_id: internshipId }
       });
+      
+      // Save enrollment to IndexedDB for persistent offline access
+      if (Storage && res.application && user.id) {
+        try {
+          const app = res.application;
+          const enrollment = {
+            userId: user.id,
+            internshipId: app.internship_id || internshipId,
+            internshipTitle: app.internship_title || '',
+            companyName: app.company_name || '',
+            sectorName: app.sector_name || '',
+            status: app.status || 'enrolled',
+            progress: 0,
+            enrolledAt: new Date().toISOString(),
+            startDate: app.start_date,
+            endDate: app.end_date,
+            serverData: app
+          };
+          
+          // Check for duplicate enrollment
+          const existing = await Storage.getEnrollmentByInternship(user.id, internshipId);
+          if (!existing) {
+            await Storage.saveEnrollment(enrollment);
+            console.log('[Storage] Enrollment saved to persistent storage');
+          }
+          
+          // Also save offer letter if provided
+          if (app.id) {
+            const offerLetter = {
+              userId: user.id,
+              enrollmentId: enrollment.id,
+              internshipId: internshipId,
+              internshipTitle: app.internship_title || '',
+              candidateName: user.name || user.email,
+              status: 'issued',
+              issueDate: new Date().toISOString()
+            };
+            await Storage.saveOfferLetter(offerLetter);
+            console.log('[Storage] Offer letter saved to persistent storage');
+          }
+        } catch (err) {
+          console.warn('[Storage] Failed to save enrollment to persistent storage:', err);
+        }
+      }
+      
       Toast.show(res.message, 'success');
       window.location.hash = '#/dashboard';
     } catch (err) {

@@ -78,10 +78,12 @@ class MobileAppManager {
       item.addEventListener('click', (e) => {
         if (item.id === 'bottom-nav-menu') {
           e.preventDefault();
-          this.toggleDrawer();
+          this.toggleMoreMenu();
           return;
         }
 
+        // Allow default navigation for hash links
+        // The hash change will trigger handleRouting() which updates the view
         // Update active state
         bottomNavItems.forEach(nav => nav.classList.remove('active'));
         item.classList.add('active');

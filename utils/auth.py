@@ -77,3 +77,47 @@ def admin_required(f):
         request.user = payload
         return f(*args, **kwargs)
     return decorated
+
+def relink_user_data_by_email(user_id, email):
+    """
+    Ensure all applications, documents, master records, and payments belonging to an email
+    are linked to the active profile's user_id so data is preserved across sessions and logins.
+    """
+    if not user_id or not email:
+        return
+    
+    from database import execute_db
+    try:
+        # Update applications where user profile email matches but user_id differs
+        execute_db("""
+            UPDATE applications 
+            SET user_id = ? 
+            WHERE (user_id != ? OR user_id IS NULL) 
+              AND (user_id IN (SELECT id FROM profiles WHERE LOWER(email) = LOWER(?)) 
+                   OR id IN (SELECT application_id FROM master_internships WHERE LOWER(student_email) = LOWER(?)))
+        """, (user_id, user_id, email, email))
+
+        # Update documents
+        execute_db("""
+            UPDATE documents 
+            SET student_id = ? 
+            WHERE (student_id != ? OR student_id IS NULL) 
+              AND student_id IN (SELECT id FROM profiles WHERE LOWER(email) = LOWER(?))
+        """, (user_id, user_id, email))
+
+        # Update master_internships
+        execute_db("""
+            UPDATE master_internships 
+            SET user_id = ? 
+            WHERE (user_id IS NULL OR user_id != ?) AND LOWER(student_email) = LOWER(?)
+        """, (user_id, user_id, email))
+
+        # Update payments
+        execute_db("""
+            UPDATE payments 
+            SET user_id = ? 
+            WHERE (user_id IS NULL OR user_id != ?) AND user_id IN (SELECT id FROM profiles WHERE LOWER(email) = LOWER(?))
+        """, (user_id, user_id, email))
+    except Exception as e:
+        print(f"[Relink User Data Warning]: {e}")
+

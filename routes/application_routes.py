@@ -2,11 +2,13 @@ import uuid
 import datetime
 import os
 from flask import Blueprint, request, jsonify, Response, send_file
+import threading
 from database import query_db, execute_db
-from utils.auth import jwt_required
+from utils.auth import jwt_required, relink_user_data_by_email
 from utils.email_service import send_offer_letter_email
 from utils.pdf_generator import generate_offer_letter_pdf
 from utils.google_sheets_service import sync_offer_letter_to_google_sheets
+from utils.supabase_sync import sync_enrollment_to_supabase
 from config import Config
 
 application_bp = Blueprint('application_bp', __name__)
@@ -59,6 +61,19 @@ def create_application():
     except Exception as e:
         print(f"[Application Creation Error] {e}")
         return jsonify({'error': f'Failed to save application: {str(e)}'}), 500
+
+    # ✅ SYNC TO SUPABASE
+    try:
+        sync_enrollment_to_supabase(user['sub'], {
+            'internship_id': internship_id,
+            'status': 'active',
+            'start_date': start_date_str,
+            'end_date': end_date_str,
+            'offer_letter_id': offer_id,
+            'certificate_id': cert_id
+        })
+    except Exception as e:
+        print(f"[Supabase Sync Warning] {e}")
 
     # Fetch user profile to populate Master Internship Record
     profile = query_db("SELECT * FROM profiles WHERE id = ?", (user['sub'],), one=True)
@@ -128,25 +143,32 @@ def create_application():
     # Save document record in DB
     doc_id = str(uuid.uuid4())
     
-    # Trigger transactional offer letter email (async in background)
-    email_success, email_res = send_offer_letter_email(
-        to_email=to_email,
-        student_name=student_name,
-        internship_title=internship['title'],
-        pdf_bytes=pdf_bytes if pdf_bytes else None,
-        start_date=start_date_str,
-        end_date=end_date_str,
-        duration=f"{duration_weeks} Weeks",
-        offer_id=offer_id
-    )
-
-    email_status = "SENT" if email_success else "FAILED"
-    msg_id = email_res.get('id') if isinstance(email_res, dict) else str(email_res)
+    # Save document record in DB
+    email_status = "QUEUED"
+    msg_id = f"async_msg_{app_id[:8]}"
 
     execute_db("""
         INSERT INTO documents (id, application_id, student_id, document_type, document_number, file_path, status, email_status, email_message_id)
         VALUES (?, ?, ?, 'OFFER_LETTER', ?, ?, 'ISSUED', ?, ?)
     """, (doc_id, app_id, user['sub'], offer_id, file_path, email_status, msg_id))
+
+    # Trigger transactional offer letter email (async in background thread for fast <100ms response)
+    def _do_send_email():
+        try:
+            send_offer_letter_email(
+                to_email=to_email,
+                student_name=student_name,
+                internship_title=internship['title'],
+                pdf_bytes=pdf_bytes if pdf_bytes else None,
+                start_date=start_date_str,
+                end_date=end_date_str,
+                duration=f"{duration_weeks} Weeks",
+                offer_id=offer_id
+            )
+        except Exception as ex:
+            print(f"[Async Offer Email Warning]: {ex}")
+
+    threading.Thread(target=_do_send_email, daemon=True).start()
 
     # Trigger Google Sheets sync
     sync_offer_letter_to_google_sheets({
@@ -190,16 +212,32 @@ def create_application():
 @jwt_required
 def get_my_applications():
     user = request.user
+    user_email = user.get('email', '')
+
+    # Auto-link orphaned records for this email
+    relink_user_data_by_email(user['sub'], user_email)
+
     apps = query_db("""
-        SELECT a.*, i.title as internship_title, i.slug as internship_slug, i.duration_weeks, i.cover_image_url,
-               s.name as sector_name, c.id as certificate_id, c.is_verified_paid
+        SELECT a.*, 
+               COALESCE(i.title, a.internship_id) as internship_title, 
+               COALESCE(i.slug, '') as internship_slug, 
+               COALESCE(i.duration_weeks, 4) as duration_weeks, 
+               COALESCE(i.cover_image_url, '') as cover_image_url,
+               COALESCE(i.company_name, 'Web Intern Platform') as company_name,
+               COALESCE(i.location, 'Virtual') as location,
+               COALESCE(i.skills_tools, '') as skills_tools,
+               COALESCE(i.tasks_projects, '') as tasks_projects,
+               COALESCE(s.name, 'Unknown Sector') as sector_name, 
+               c.id as certificate_id, 
+               c.is_verified_paid,
+               CASE WHEN c.is_verified_paid = 1 THEN 1 ELSE 0 END as paid
         FROM applications a
-        JOIN internships i ON a.internship_id = i.id
-        JOIN sectors s ON i.sector_id = s.id
+        LEFT JOIN internships i ON a.internship_id = i.id
+        LEFT JOIN sectors s ON i.sector_id = s.id
         LEFT JOIN certificates c ON a.id = c.application_id
-        WHERE a.user_id = ?
+        WHERE a.user_id = ? OR a.user_id IN (SELECT id FROM profiles WHERE LOWER(email) = LOWER(?))
         ORDER BY a.applied_at DESC
-    """, (user['sub'],))
+    """, (user['sub'], user_email))
 
     for app_item in apps:
         # Calculate weekly progress
@@ -210,7 +248,7 @@ def get_my_applications():
         
         completed_weeks = approved_subs['cnt'] if approved_subs else 0
         app_item['completed_weeks'] = completed_weeks
-        app_item['progress_percent'] = int((completed_weeks / app_item['duration_weeks']) * 100)
+        app_item['progress_percent'] = int((completed_weeks / (app_item['duration_weeks'] or 4)) * 100) if app_item['duration_weeks'] else 0
         
         # Latest submission
         latest_sub = query_db("""
@@ -227,6 +265,8 @@ def get_my_applications():
 @jwt_required
 def get_application_detail(app_id):
     user = request.user
+    user_email = user.get('email', '')
+
     app_record = query_db("""
         SELECT a.*, i.title as internship_title, i.slug as internship_slug, i.duration_weeks, i.full_description,
                s.name as sector_name, c.id as certificate_id, c.is_verified_paid
@@ -234,8 +274,8 @@ def get_application_detail(app_id):
         JOIN internships i ON a.internship_id = i.id
         JOIN sectors s ON i.sector_id = s.id
         LEFT JOIN certificates c ON a.id = c.application_id
-        WHERE a.id = ? AND (a.user_id = ? OR ? = 'admin')
-    """, (app_id, user['sub'], user.get('role')), one=True)
+        WHERE a.id = ? AND (a.user_id = ? OR a.user_id IN (SELECT id FROM profiles WHERE LOWER(email) = LOWER(?)) OR ? = 'admin')
+    """, (app_id, user['sub'], user_email, user.get('role')), one=True)
 
     if not app_record:
         return jsonify({'error': 'Application record not found.'}), 404
