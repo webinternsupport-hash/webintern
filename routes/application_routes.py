@@ -91,35 +91,44 @@ def create_application():
     student_degree = (profile.get('degree') or data.get('degree') or "Recognized Degree Program") if profile else "Recognized Degree Program"
 
     # Create Master Record (Single Source of Truth)
-    from utils.master_record_service import save_master_record
-    master_data = {
-        "student_full_name": student_name,
-        "student_email": to_email,
-        "student_mobile": student_mobile,
-        "college_name": student_college,
-        "degree": student_degree,
-        "department": student_dept,
-        "internship_position": f"{internship['title']} Intern",
-        "internship_domain": internship['title'],
-        "internship_start_date": start_date_str,
-        "internship_end_date": end_date_str,
-        "project_title": internship.get('project_name') or f"{internship['title']} Capstone Project",
-        "mentor_name": internship.get('guide_name') or "Dr. A. K. Sharma",
-        "mentor_designation": "Technical Director",
-        "offer_id": offer_id,
-        "certificate_id": cert_id,
-        "user_id": user['sub'],
-        "application_id": app_id
-    }
-    master_rec, _ = save_master_record(master_data)
+    try:
+        from utils.master_record_service import save_master_record
+        master_data = {
+            "student_full_name": student_name or "Student Candidate",
+            "student_email": to_email or "",
+            "student_mobile": student_mobile or "",
+            "college_name": student_college or "Recognized College / Institution",
+            "degree": student_degree or "Recognized Degree Program",
+            "department": student_dept or "Technology",
+            "internship_position": f"{internship['title']} Intern",
+            "internship_domain": internship['title'],
+            "internship_start_date": start_date_str,
+            "internship_end_date": end_date_str,
+            "project_title": internship.get('project_name') or f"{internship['title']} Capstone Project",
+            "mentor_name": internship.get('guide_name') or "Dr. A. K. Sharma",
+            "mentor_designation": "Technical Director",
+            "offer_id": offer_id,
+            "certificate_id": cert_id,
+            "user_id": user['sub'],
+            "application_id": app_id
+        }
+        master_rec, master_errors = save_master_record(master_data)
+        if master_errors:
+            print(f"[Master Record Warning] {master_errors}")
+    except Exception as e:
+        print(f"[Master Record Error] {e}")
+        import traceback
+        traceback.print_exc()
 
     date_str = start_date_str
     
-    # ✅ PRE-GENERATE AND CACHE OFFER LETTER PDF
+    # ✅ PRE-GENERATE AND CACHE OFFER LETTER PDF (non-blocking)
+    pdf_bytes = b""
+    file_path = None
     try:
         pdf_bytes = generate_offer_letter_pdf(
-            student_name=student_name,
-            internship_title=f"{internship['title']} Intern",
+            student_name=student_name or "Student Candidate",
+            internship_title=internship.get('title') or "Internship",
             date_str=date_str,
             save_id=app_id,
             company_name=internship.get('company_name') or "Web Intern Platform",
@@ -130,21 +139,26 @@ def create_application():
             skills_tools=internship.get('skills_tools'),
             tasks_projects=internship.get('tasks_projects'),
             offer_id=offer_id,
-            college_name=student_college,
-            department=student_dept
+            college_name=student_college or "Institution",
+            department=student_dept or "Department"
         )
         
         # Save PDF to disk for instant retrieval
-        os.makedirs(Config.GENERATED_OFFERS_DIR, exist_ok=True)
-        file_path = os.path.join(Config.GENERATED_OFFERS_DIR, f"offer_{app_id}.pdf")
-        with open(file_path, 'wb') as f:
-            f.write(pdf_bytes)
-        
-        print(f"[Offer Letter Generated] App: {app_id}, File: {file_path}, Size: {len(pdf_bytes)} bytes")
+        try:
+            os.makedirs(Config.GENERATED_OFFERS_DIR, exist_ok=True)
+            file_path = os.path.join(Config.GENERATED_OFFERS_DIR, f"offer_{app_id}.pdf")
+            with open(file_path, 'wb') as f:
+                f.write(pdf_bytes)
+            print(f"[Offer Letter Generated] App: {app_id}, File: {file_path}, Size: {len(pdf_bytes)} bytes")
+        except Exception as save_err:
+            print(f"[PDF Save Warning] Could not save PDF to disk: {save_err}")
+            file_path = None
     except Exception as e:
-        print(f"[PDF Generation Error] {e}")
-        file_path = None
+        print(f"[PDF Generation Warning] Could not generate PDF: {e}")
+        import traceback
+        traceback.print_exc()
         pdf_bytes = b""
+        file_path = None
 
     # Save document record in DB
     doc_id = str(uuid.uuid4())
