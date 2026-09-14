@@ -1,0 +1,530 @@
+/* ========================================
+   MOBILE FORM FIXES - Registration & Checkboxes
+   ======================================== */
+
+/* Checkbox styling for mobile - CRITICAL FIX */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  flex-shrink: 0;
+  border: 2px solid #0B3D91;
+  border-radius: 4px;
+  cursor: pointer;
+  background-color: white;
+  position: relative;
+  transition: all 0.2s ease;
+  accent-color: #0B3D91;
+  pointer-events: auto !important;
+  z-index: 10;
+  touch-action: manipulation;
+}
+
+/* Checked state */
+input[type="checkbox"]:checked {
+  background-color: #0B3D91;
+  border-color: #0B3D91;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 16px;
+}
+
+/* Focus state for accessibility */
+input[type="checkbox"]:focus {
+  outline: 2px solid #0B3D91;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(11, 61, 145, 0.1);
+}
+
+/* Active/pressed state */
+input[type="checkbox"]:active {
+  transform: scale(0.95);
+}
+
+/* Disabled state */
+input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Checkbox label styling for mobile - CRITICAL FIX */
+.checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--color-blue-dark, #0B3D91);
+  cursor: pointer;
+  padding: 8px 4px;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  pointer-events: auto !important;
+}
+
+/* Checkbox inside label - ensure it's always clickable */
+.checkbox-label input[type="checkbox"] {
+  pointer-events: auto !important;
+  z-index: 10;
+  flex-shrink: 0;
+  margin-top: 0;
+}
+
+/* Checkbox label hover state */
+.checkbox-label:active {
+  background-color: rgba(11, 61, 145, 0.05);
+}
+
+/* Ensure text wraps properly */
+.checkbox-label span {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  flex: 1;
+  line-height: 1.5;
+  pointer-events: none;
+}
+
+/* Form group for checkboxes */
+.form-checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 20px 0;
+}
+
+/* Mobile viewport adjustments */
+@media (max-width: 768px) {
+  input[type="checkbox"] {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
+  }
+
+  .checkbox-label {
+    gap: 14px;
+    padding: 10px 4px;
+    font-size: 14px;
+  }
+
+  .checkbox-label span {
+    font-size: 13.5px;
+  }
+
+  /* Ensure clickable area is at least 44x44px for touch */
+  .checkbox-label {
+    min-height: 44px;
+    padding: 10px 8px;
+  }
+
+  /* Add more spacing for small screens */
+  .form-checkbox-group {
+    gap: 16px;
+    margin: 24px 0;
+  }
+}
+
+/* Prevent iOS zoom on checkbox */
+input[type="checkbox"] {
+  font-size: 16px;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: more) {
+  input[type="checkbox"] {
+    border-width: 3px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  input[type="checkbox"] {
+    background-color: #f0f0f0;
+    border-color: #0B3D91;
+  }
+
+  input[type="checkbox"]:checked {
+    background-color: #0B3D91;
+  }
+
+  .checkbox-label {
+    color: #f0f0f0;
+  }
+}
+
+/* ========================================
+   MOBILE FORM LAYOUT FIXES
+   ======================================== */
+
+/* Form container on mobile */
+.form-container {
+  padding: 16px;
+  max-width: 100%;
+  width: 100%;
+}
+
+/* Form inputs on mobile */
+.form-input,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+textarea,
+select {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  border: 1px solid #E0E0E0;
+  border-radius: 6px;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+/* Focus state for inputs */
+.form-input:focus,
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="tel"]:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: #0B3D91;
+  box-shadow: 0 0 0 3px rgba(11, 61, 145, 0.1);
+}
+
+/* Mobile button styling */
+.btn {
+  font-size: 16px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn:active {
+  opacity: 0.8;
+}
+
+/* Full width buttons on mobile */
+@media (max-width: 768px) {
+  .btn-full,
+  .btn-block {
+    width: 100%;
+  }
+
+  .btn {
+    font-size: 16px;
+  }
+}
+
+/* ========================================
+   MOBILE TEXT & LINK FIXES
+   ======================================== */
+
+/* Links in forms */
+a {
+  text-decoration: underline;
+  color: #0B3D91;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+a:active {
+  opacity: 0.7;
+}
+
+/* Terms and privacy links */
+.terms-link,
+.privacy-link {
+  color: #0B3D91;
+  text-decoration: underline;
+  cursor: pointer;
+  word-break: break-word;
+}
+
+/* ========================================
+   MOBILE OFFER LETTER BUTTON FIX
+   ======================================== */
+
+.offer-button,
+.btn-offer,
+[class*="offer"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  min-height: 44px;
+  font-size: 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+}
+
+.offer-button:active {
+  transform: scale(0.98);
+  opacity: 0.8;
+}
+
+/* Certificate button fix */
+.cert-button,
+.btn-cert,
+[class*="cert"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  min-height: 44px;
+  font-size: 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+}
+
+.cert-button:active {
+  transform: scale(0.98);
+  opacity: 0.8;
+}
+
+/* ========================================
+   MOBILE PROFILE PAGE FIX
+   ======================================== */
+
+/* Profile container */
+.profile-container {
+  padding: 16px;
+  max-width: 100%;
+  width: 100%;
+}
+
+/* Profile card */
+.profile-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Profile buttons */
+.profile-btn,
+[class*="profile-"] button,
+[class*="profile-"] .btn {
+  width: 100%;
+  margin: 8px 0;
+  min-height: 44px;
+}
+
+/* Enrollment items */
+.enrollment-item,
+.internship-item,
+.application-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #E0E0E0;
+  margin-bottom: 12px;
+}
+
+/* Date display */
+.date-display,
+[class*="date"],
+.start-date,
+.end-date {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #666;
+  word-break: break-word;
+}
+
+/* Status badge */
+.status-badge,
+.status-label,
+[class*="status"] {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* ========================================
+   MOBILE NAVIGATION FIX
+   ======================================== */
+
+/* Bottom navigation */
+.bottom-nav {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  height: 60px;
+  background: white;
+  border-top: 1px solid #E0E0E0;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Bottom nav item */
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px;
+  color: #999;
+  text-decoration: none;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  flex: 1;
+  height: 100%;
+  touch-action: manipulation;
+}
+
+/* Active nav item */
+.bottom-nav-item.active {
+  color: #0B3D91;
+}
+
+/* Bottom nav item icon */
+.bottom-nav-item i {
+  width: 24px;
+  height: 24px;
+}
+
+/* Menu icon */
+.hamburger-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.hamburger-btn i {
+  width: 24px;
+  height: 24px;
+}
+
+/* ========================================
+   MOBILE HOME & EXPLORER PAGE FIX
+   ======================================== */
+
+/* Main content area */
+main {
+  padding-bottom: 80px;
+  min-height: 100vh;
+}
+
+/* Card layout on mobile */
+.card,
+.internship-card,
+.sector-card {
+  margin-bottom: 16px;
+  border-radius: 12px;
+  padding: 16px;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.card:active {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Content grid on mobile */
+.grid,
+[class*="grid"],
+[class*="list"] {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  width: 100%;
+}
+
+/* Ensure proper scrolling */
+html,
+body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+/* Fix for small phones */
+@media (max-width: 375px) {
+  .form-container,
+  .profile-container,
+  .card,
+  .btn,
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* ========================================
+   MOBILE AUTHENTICATION FIX
+   ======================================== */
+
+/* Auth form on mobile */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+/* Auth button */
+.auth-btn {
+  width: 100%;
+  min-height: 44px;
+  font-size: 16px;
+}
+
+/* Google Sign-In button mobile fix */
+#g_id_onload {
+  width: 100%;
+}
+
+.g_id_signin {
+  width: 100%;
+}
+
+/* Google button container fix */
+div[id*="g_id"] {
+  width: 100%;
+}

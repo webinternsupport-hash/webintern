@@ -62,6 +62,19 @@ const API = {
   },
 
   async request(endpoint, options = {}, retryCount = 0) {
+    // CRITICAL FIX #4: Ensure endpoint uses absolute path that works in production
+    // Handle both relative paths (/api/...) and full URLs
+    let fullUrl = endpoint;
+    if (!endpoint.startsWith('http')) {
+      // Relative path - use window.location.origin for deployment compatibility
+      if (!endpoint.startsWith('/')) {
+        fullUrl = '/' + endpoint;
+      }
+      fullUrl = window.location.origin + fullUrl;
+    }
+    
+    console.log('[API] Request:', endpoint, '→', fullUrl);
+
     const headers = {
       'Content-Type': 'application/json',
       ...options.headers
@@ -75,6 +88,7 @@ const API = {
     const config = {
       method: options.method || 'GET',
       headers,
+      credentials: 'include', // Include cookies for CORS requests
       ...options
     };
 
@@ -83,7 +97,7 @@ const API = {
     }
 
     try {
-      const response = await fetch(endpoint, config);
+      const response = await fetch(fullUrl, config);
       const contentType = response.headers.get('content-type') || '';
       let data;
 

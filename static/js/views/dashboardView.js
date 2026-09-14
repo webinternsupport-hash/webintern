@@ -107,28 +107,21 @@ const DashboardView = {
         return;
       }
       
-      // First, show persistent data from IndexedDB (if available)
-      let persistedApps = [];
-      if (Storage && user && user.id) {
-        try {
-          persistedApps = await Storage.getUserEnrollments(user.id);
-          console.log('[Dashboard] Loaded persisted enrollments:', persistedApps.length);
-        } catch (err) {
-          console.warn('[Dashboard] Failed to load persisted data:', err);
-        }
-      }
+      // CRITICAL FIX #1: Fetch fresh data from server FIRST
+      // This ensures users always see their current persisted account data
+      let applicationsToDisplay = [];
+      let serverFetchSucceeded = false;
       
-      // Try to fetch fresh data from server
-      let serverApps = [];
       try {
-        console.log('[Dashboard] Fetching applications from /api/applications/me');
+        console.log('[Dashboard] Fetching fresh applications from /api/applications/me');
         const res = await API.request('/api/applications/me');
-        serverApps = res.applications || [];
-        console.log('[Dashboard] Received server apps:', serverApps.length);
+        applicationsToDisplay = res.applications || [];
+        serverFetchSucceeded = true;
+        console.log('[Dashboard] Successfully fetched server apps:', applicationsToDisplay.length);
         
         // Save server data to IndexedDB for future offline access
-        if (Storage && user && user.id) {
-          for (const app of serverApps) {
+        if (Storage && user && user.id && applicationsToDisplay.length > 0) {
+          for (const app of applicationsToDisplay) {
             const enrollment = {
               userId: user.id,
               internshipId: app.internship_id || app.id,
@@ -143,7 +136,7 @@ const DashboardView = {
               endDate: app.end_date,
               durationWeeks: app.duration_weeks || 4,
               completedWeeks: app.completed_weeks || 0,
-              serverData: app // Store full server data for reference
+              serverData: app
             };
             try {
               await Storage.saveEnrollment(enrollment);
@@ -153,12 +146,19 @@ const DashboardView = {
           }
         }
       } catch (err) {
-        console.error('[Dashboard] Failed to fetch fresh data:', err);
-        console.warn('[Dashboard] Using persisted data instead');
+        console.error('[Dashboard] Failed to fetch fresh data from server:', err);
+        
+        // FALLBACK: Only use persisted data if server fetch fails
+        if (Storage && user && user.id) {
+          try {
+            const persistedApps = await Storage.getUserEnrollments(user.id);
+            applicationsToDisplay = persistedApps || [];
+            console.log('[Dashboard] Using persisted enrollments as fallback:', applicationsToDisplay.length);
+          } catch (fallbackErr) {
+            console.warn('[Dashboard] Fallback to persisted data also failed:', fallbackErr);
+          }
+        }
       }
-      
-      // Use server data if available, otherwise use persisted data
-      const applicationsToDisplay = serverApps.length > 0 ? serverApps : persistedApps;
       
       const res = { applications: applicationsToDisplay };
       // Note: container was already retrieved at the start of loadApplications
