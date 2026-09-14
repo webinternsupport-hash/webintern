@@ -15,6 +15,7 @@ class MobileViewFixer {
     this.fixProfilePageLayout();
     this.fixFormInputs();
     this.fixBottomNavigation();
+    this.fixViewDetailsButtons();
     this.fixContentScrolling();
     this.fixAuthenticationFlow();
     this.observePageChanges();
@@ -320,6 +321,62 @@ class MobileViewFixer {
   }
 
   /**
+   * Fix card view details button click handlers
+   */
+  fixViewDetailsButtons() {
+    const observer = new MutationObserver(() => {
+      // Find all View Details buttons and links
+      document.querySelectorAll('a[href*="/internship/"], .btn-outline:contains("View Details")').forEach(btn => {
+        if (!btn.classList.contains('view-details-fixed')) {
+          btn.classList.add('view-details-fixed');
+          btn.style.cursor = 'pointer';
+          btn.style.touchAction = 'manipulation';
+          btn.style.pointerEvents = 'auto';
+          btn.style.zIndex = '10';
+          
+          // Ensure link is clickable
+          btn.addEventListener('click', (e) => {
+            const href = btn.getAttribute('href');
+            if (href && href.startsWith('#')) {
+              e.preventDefault();
+              e.stopPropagation();
+              window.location.hash = href;
+            }
+          }, { passive: false });
+        }
+      });
+
+      // Also check for text content
+      document.querySelectorAll('button, a').forEach(el => {
+        if (el.textContent.includes('View Details') && !el.classList.contains('view-details-fixed')) {
+          el.classList.add('view-details-fixed');
+          el.style.cursor = 'pointer';
+          el.style.touchAction = 'manipulation';
+          el.style.pointerEvents = 'auto';
+          
+          el.addEventListener('click', (e) => {
+            const href = el.getAttribute('href');
+            if (href && href.startsWith('#')) {
+              e.preventDefault();
+              e.stopPropagation();
+              window.location.hash = href;
+            }
+          }, { passive: false });
+        }
+      });
+
+      // Also handle inline onclick handlers for internship cards
+      document.querySelectorAll('[onclick*="DetailView"]').forEach(el => {
+        el.style.cursor = 'pointer';
+        el.style.touchAction = 'manipulation';
+        el.style.pointerEvents = 'auto';
+      });
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  /**
    * Fix content scrolling and padding
    */
   fixContentScrolling() {
@@ -393,6 +450,7 @@ class MobileViewFixer {
         this.fixProfilePageLayout();
         this.fixFormInputs();
         this.fixBottomNavigation();
+        this.fixViewDetailsButtons();
         this.fixContentScrolling();
       }, 100);
     });
@@ -408,6 +466,7 @@ class MobileViewFixer {
           this.fixProfilePageLayout();
           this.fixFormInputs();
           this.fixBottomNavigation();
+          this.fixViewDetailsButtons();
           this.fixContentScrolling();
         }, 50);
       });

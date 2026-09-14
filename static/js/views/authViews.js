@@ -37,17 +37,17 @@ const AuthViews = {
 
               <div class="form-group">
                 <label class="form-label">Mobile Number</label>
-                <div style="display: flex; gap: 8px; align-items: stretch;">
-                  <select id="reg-country-code" class="form-input" style="flex-shrink: 0; width: auto; min-width: 80px; padding: 12px 10px; font-size: 14px;">
+                <div style="display: flex; gap: 8px; align-items: center; width: 100%; box-sizing: border-box;">
+                  <select id="reg-country-code" class="form-input" style="flex-shrink: 0; width: 90px; min-width: 90px; padding: 12px 8px; font-size: 14px; height: 48px; box-sizing: border-box;">
                     <option value="+91">+91</option>
                     <option value="+1">+1</option>
                     <option value="+44">+44</option>
                     <option value="+61">+61</option>
                     <option value="+971">+971</option>
                   </select>
-                  <div style="position: relative; display: flex; align-items: center; flex: 1;">
-                    <i data-feather="phone" style="position: absolute; left: 14px; color: var(--color-gray-text); width: 18px; height: 18px; pointer-events: none; flex-shrink: 0;"></i>
-                    <input type="tel" id="reg-phone" class="form-input" style="padding-left: 48px; padding-right: 16px; width: 100%; box-sizing: border-box;" placeholder="9876543210" />
+                  <div style="position: relative; display: flex; align-items: center; flex: 1; min-width: 0;">
+                    <i data-feather="phone" style="position: absolute; left: 14px; color: var(--color-gray-text); width: 18px; height: 18px; pointer-events: none; flex-shrink: 0; z-index: 1;"></i>
+                    <input type="tel" id="reg-phone" class="form-input" style="padding-left: 48px; padding-right: 16px; width: 100%; height: 48px; box-sizing: border-box; font-size: 16px;" placeholder="9876543210" inputmode="numeric" />
                   </div>
                 </div>
               </div>
