@@ -251,41 +251,59 @@ const DashboardView = {
                 Status: <strong style="color: var(--color-primary-blue);">${app.status || 'ACTIVE'}</strong>
               </p>
               <div class="application-actions" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
-                <!-- Offer Letter download -->
-                <a href="/api/applications/${app.id}/offer-letter.pdf" download
+                <!-- Offer Letter View -->
+                <a href="/api/applications/${app.id}/offer-letter.pdf" target="_blank"
+                   title="View Offer Letter"
+                   style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; min-height: 40px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1.5px solid #94A3B8; color: #475569; background: #fff; text-decoration: none; cursor: pointer; transition: background 0.2s, color 0.2s; flex: 1; min-width: 100px; justify-content: center;"
+                   onmouseover="this.style.background='#F1F5F9';this.style.borderColor='#64748B'"
+                   onmouseout="this.style.background='#fff';this.style.borderColor='#94A3B8'">
+                  <i data-feather="eye" style="width: 14px; height: 14px; flex-shrink: 0;"></i>
+                  View
+                </a>
+
+                <!-- Offer Letter Download -->
+                <a href="/api/applications/${app.id}/offer-letter.pdf" download="Offer_Letter_${app.id}.pdf"
                    title="Download Offer Letter"
-                   style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; min-height: 40px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1.5px solid var(--color-primary-blue); color: var(--color-primary-blue); background: #EAF1FB; text-decoration: none; cursor: pointer; transition: background 0.2s, color 0.2s; flex: 1; min-width: 110px; justify-content: center;"
+                   style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; min-height: 40px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1.5px solid var(--color-primary-blue); color: var(--color-primary-blue); background: #EAF1FB; text-decoration: none; cursor: pointer; transition: background 0.2s, color 0.2s; flex: 1; min-width: 100px; justify-content: center;"
                    onmouseover="this.style.background='var(--color-primary-blue)';this.style.color='#fff'"
                    onmouseout="this.style.background='#EAF1FB';this.style.color='var(--color-primary-blue)'">
-                  <i data-feather="download" style="width: 15px; height: 15px; flex-shrink: 0;"></i>
-                  Offer Letter
+                  <i data-feather="download" style="width: 14px; height: 14px; flex-shrink: 0;"></i>
+                  Download
                 </a>
 
                 <!-- Certificate download or status -->
                 ${isPaid && isCompleted && app.certificate_id ? `
-                  <a href="/api/certificates/${app.certificate_id}/pdf" download
+                  <a href="/api/certificates/${app.certificate_id}/pdf" target="_blank"
+                     title="View Certificate"
+                     style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; min-height: 40px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1.5px solid #94A3B8; color: #475569; background: #fff; text-decoration: none; cursor: pointer; transition: background 0.2s, color 0.2s; flex: 1; min-width: 100px; justify-content: center;"
+                     onmouseover="this.style.background='#F1F5F9';this.style.borderColor='#64748B'"
+                     onmouseout="this.style.background='#fff';this.style.borderColor='#94A3B8'">
+                    <i data-feather="eye" style="width: 14px; height: 14px; flex-shrink: 0;"></i>
+                    View
+                  </a>
+                  <a href="/api/certificates/${app.certificate_id}/pdf" download="Certificate_${app.certificate_id}.pdf"
                      title="Download Certificate"
-                     style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; min-height: 40px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1.5px solid #10B981; color: #10B981; background: #D1FAE5; text-decoration: none; cursor: pointer; transition: background 0.2s, color 0.2s; flex: 1; min-width: 110px; justify-content: center;"
+                     style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; min-height: 40px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1.5px solid #10B981; color: #10B981; background: #D1FAE5; text-decoration: none; cursor: pointer; transition: background 0.2s, color 0.2s; flex: 1; min-width: 100px; justify-content: center;"
                      onmouseover="this.style.background='#10B981';this.style.color='#fff'"
                      onmouseout="this.style.background='#D1FAE5';this.style.color='#10B981'">
-                    <i data-feather="download" style="width: 15px; height: 15px; flex-shrink: 0;"></i>
-                    Certificate
+                    <i data-feather="download" style="width: 14px; height: 14px; flex-shrink: 0;"></i>
+                    Download
                   </a>
                 ` : `
                   <button onclick="DashboardView.handleCertificateClick('${app.id}')"
                           title="${certStatusMsg}"
-                          style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; min-height: 40px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1.5px solid ${certStatusColor}; color: ${certStatusColor}; background: #FFFBEB; cursor: pointer; transition: background 0.2s, color 0.2s; flex: 1; min-width: 110px; justify-content: center;">
-                    <i data-feather="award" style="width: 15px; height: 15px; flex-shrink: 0;"></i>
+                          style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; min-height: 40px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1.5px solid ${certStatusColor}; color: ${certStatusColor}; background: #FFFBEB; cursor: pointer; transition: background 0.2s; flex: 1; min-width: 100px; justify-content: center;">
+                    <i data-feather="award" style="width: 14px; height: 14px; flex-shrink: 0;"></i>
                     Certificate
                   </button>
                 `}
 
                 <!-- Tasks -->
                 <button onclick="DashboardView.openWorkspace('${app.id}')"
-                        style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; min-height: 40px; font-size: 12px; font-weight: 600; border-radius: 8px; border: none; background: var(--color-primary-blue); color: #fff; cursor: pointer; transition: opacity 0.2s; flex: 1; min-width: 110px; justify-content: center;"
+                        style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; min-height: 40px; font-size: 12px; font-weight: 600; border-radius: 8px; border: none; background: var(--color-primary-blue); color: #fff; cursor: pointer; transition: opacity 0.2s; flex: 1; min-width: 100px; justify-content: center;"
                         onmouseover="this.style.opacity='0.85'"
                         onmouseout="this.style.opacity='1'">
-                  <i data-feather="edit-3" style="width: 15px; height: 15px; flex-shrink: 0;"></i>
+                  <i data-feather="edit-3" style="width: 14px; height: 14px; flex-shrink: 0;"></i>
                   Tasks
                 </button>
               </div>

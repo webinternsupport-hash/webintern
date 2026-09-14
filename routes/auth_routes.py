@@ -175,6 +175,10 @@ def register_user():
     full_mobile = f"{phone_country_code} {phone}".strip() if phone else ""
     user_id = str(uuid.uuid4())
     hashed_pwd = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    
+    print(f"[REGISTER DEBUG] Creating account for email: {email}")
+    print(f"[REGISTER DEBUG] Password hash length: {len(hashed_pwd)}")
+    print(f"[REGISTER DEBUG] Hash type: {type(hashed_pwd)}")
 
     try:
         # Check existing in SQLite
@@ -210,6 +214,14 @@ def register_user():
             "INSERT INTO profiles (id, full_name, email, phone, phone_country_code, college, department, degree, password_hash, auth_provider, terms_accepted, marketing_opt_in) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'email', 1, ?)",
             (user_id, full_name, email, phone, phone_country_code, college, department, degree, hashed_pwd, 1 if marketing_opt_in else 0)
         )
+        
+        # CRITICAL VERIFICATION: Verify password hash was saved correctly
+        saved_profile = query_db("SELECT password_hash FROM profiles WHERE id = ?", (user_id,), one=True)
+        if saved_profile:
+            print(f"[REGISTER VERIFY] ✅ Password hash saved successfully")
+            print(f"[REGISTER VERIFY] Saved hash length: {len(saved_profile.get('password_hash', ''))}")
+        else:
+            print(f"[REGISTER ERROR] ❌ Failed to verify password hash save")
 
         relink_user_data_by_email(user_id, email)
 
@@ -262,52 +274,83 @@ def login_user():
     if not email or not password:
         return jsonify({'error': 'Email address and password are required.'}), 400
 
+    print(f"\n[LOGIN DEBUG] Email (normalized): {email}")
+    print(f"[LOGIN DEBUG] Password length: {len(password)}")
+
     # 1. Check local SQLite DB first - with proper email normalization
     local_profile = query_db("SELECT * FROM profiles WHERE LOWER(email) = LOWER(?)", (email,), one=True)
-    if local_profile and local_profile.get('password_hash'):
-        # CRITICAL FIX: Only attempt bcrypt if password_hash exists
-        try:
-            if bcrypt.checkpw(password.encode('utf-8'), local_profile['password_hash'].encode('utf-8')):
-                token = generate_jwt({
-                    'sub': local_profile['id'],
-                    'email': email,
-                    'name': local_profile['full_name'],
-                    'role': 'student'
-                })
-
-                relink_user_data_by_email(local_profile['id'], email)
-
-                sync_user_login_to_google_sheets({
-                    'id': local_profile['id'],
-                    'full_name': local_profile['full_name'],
-                    'email': email,
-                    'mobile': local_profile.get('phone') or local_profile.get('mobile') or '',
-                    'college': local_profile.get('college', ''),
-                    'auth_provider': 'email'
-                })
-
-                resp = make_response(jsonify({
-                    'message': 'Login successful.',
-                    'token': token,
-                    'user': {
-                        'id': local_profile['id'],
+    
+    if local_profile:
+        print(f"[LOGIN DEBUG] ✅ Profile found by email: {local_profile.get('id')}")
+        print(f"[LOGIN DEBUG] Password hash exists: {bool(local_profile.get('password_hash'))}")
+        
+        if local_profile.get('password_hash'):
+            # CRITICAL FIX: Only attempt bcrypt if password_hash exists
+            try:
+                pwd_hash = local_profile['password_hash']
+                # Handle case where hash might be stored as string
+                if isinstance(pwd_hash, str):
+                    pwd_hash_bytes = pwd_hash.encode('utf-8')
+                else:
+                    pwd_hash_bytes = pwd_hash
+                
+                print(f"[LOGIN DEBUG] Password hash type: {type(pwd_hash)}, length: {len(str(pwd_hash))}")
+                print(f"[LOGIN DEBUG] Attempting bcrypt.checkpw...")
+                
+                password_match = bcrypt.checkpw(password.encode('utf-8'), pwd_hash_bytes)
+                print(f"[LOGIN DEBUG] Password match result: {password_match}")
+                
+                if password_match:
+                    print(f"[LOGIN DEBUG] ✅ PASSWORD VERIFIED - Generating token...")
+                    token = generate_jwt({
+                        'sub': local_profile['id'],
                         'email': email,
+                        'name': local_profile['full_name'],
+                        'role': 'student'
+                    })
+
+                    relink_user_data_by_email(local_profile['id'], email)
+
+                    sync_user_login_to_google_sheets({
+                        'id': local_profile['id'],
                         'full_name': local_profile['full_name'],
+                        'email': email,
                         'mobile': local_profile.get('phone') or local_profile.get('mobile') or '',
                         'college': local_profile.get('college', ''),
-                        'profile_complete': True,
-                        'role': 'student'
-                    }
-                }))
-                resp.set_cookie('access_token', token, httponly=True, samesite='Lax', max_age=86400)
-                return resp, 200
-            else:
+                        'auth_provider': 'email'
+                    })
+
+                    resp = make_response(jsonify({
+                        'message': 'Login successful.',
+                        'token': token,
+                        'user': {
+                            'id': local_profile['id'],
+                            'email': email,
+                            'full_name': local_profile['full_name'],
+                            'mobile': local_profile.get('phone') or local_profile.get('mobile') or '',
+                            'college': local_profile.get('college', ''),
+                            'profile_complete': True,
+                            'role': 'student'
+                        }
+                    }))
+                    resp.set_cookie('access_token', token, httponly=True, samesite='Lax', max_age=86400)
+                    print(f"[LOGIN SUCCESS] User {email} logged in successfully")
+                    return resp, 200
+                else:
+                    print(f"[LOGIN DEBUG] ❌ PASSWORD MISMATCH - bcrypt.checkpw returned False")
+                    return jsonify({'error': 'Invalid email or password.'}), 401
+            except Exception as e:
+                print(f"[LOGIN ERROR] Password verification exception: {type(e).__name__}: {e}")
+                import traceback
+                traceback.print_exc()
                 return jsonify({'error': 'Invalid email or password.'}), 401
-        except Exception as e:
-            print(f"[Password Verification Error] {e}")
-            return jsonify({'error': 'Invalid email or password.'}), 401
+        else:
+            print(f"[LOGIN DEBUG] ⚠️ No password_hash found for user - trying Supabase auth")
+    else:
+        print(f"[LOGIN DEBUG] ❌ No profile found for email: {email}")
 
     try:
+        print(f"[LOGIN DEBUG] Attempting Supabase authentication for: {email}")
         supabase_anon = get_supabase_anon()
         supabase_admin = get_supabase_admin()
 
@@ -318,8 +361,10 @@ def login_user():
         })
 
         if not auth_res.user:
+            print(f"[LOGIN DEBUG] ❌ Supabase auth failed - no user returned")
             return jsonify({'error': 'Invalid email or password.'}), 401
 
+        print(f"[LOGIN DEBUG] ✅ Supabase auth successful, user_id: {auth_res.user.id}")
         user_id = str(auth_res.user.id)
 
         # Retrieve profile from Supabase profiles table by ID
