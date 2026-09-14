@@ -250,21 +250,43 @@ const DashboardView = {
               <p style="font-size: 12px; color: var(--color-gray-text); margin-bottom: 10px;">
                 Status: <strong style="color: var(--color-primary-blue);">${app.status || 'ACTIVE'}</strong>
               </p>
-              <div class="application-actions" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <a href="/api/applications/${app.id}/offer-letter.pdf" target="_blank" class="btn btn-outline btn-sm" style="flex: 1; min-width: 100px; text-align: center; font-size: 12px; padding: 8px 10px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
-                  <i data-feather="download" style="width: 14px; height: 14px;"></i> Offer
+              <div class="application-actions" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                <!-- Offer Letter download -->
+                <a href="/api/applications/${app.id}/offer-letter.pdf" download
+                   title="Download Offer Letter"
+                   style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; min-height: 40px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1.5px solid var(--color-primary-blue); color: var(--color-primary-blue); background: #EAF1FB; text-decoration: none; cursor: pointer; transition: background 0.2s, color 0.2s; flex: 1; min-width: 110px; justify-content: center;"
+                   onmouseover="this.style.background='var(--color-primary-blue)';this.style.color='#fff'"
+                   onmouseout="this.style.background='#EAF1FB';this.style.color='var(--color-primary-blue)'">
+                  <i data-feather="download" style="width: 15px; height: 15px; flex-shrink: 0;"></i>
+                  Offer Letter
                 </a>
+
+                <!-- Certificate download or status -->
                 ${isPaid && isCompleted && app.certificate_id ? `
-                  <a href="/api/certificates/${app.certificate_id}/pdf" target="_blank" class="btn btn-primary btn-sm" style="flex: 1; min-width: 100px; text-align: center; background: #10B981 !important; color: white !important; font-size: 12px; padding: 8px 10px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
-                    <i data-feather="download" style="width: 14px; height: 14px;"></i> Cert
+                  <a href="/api/certificates/${app.certificate_id}/pdf" download
+                     title="Download Certificate"
+                     style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; min-height: 40px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1.5px solid #10B981; color: #10B981; background: #D1FAE5; text-decoration: none; cursor: pointer; transition: background 0.2s, color 0.2s; flex: 1; min-width: 110px; justify-content: center;"
+                     onmouseover="this.style.background='#10B981';this.style.color='#fff'"
+                     onmouseout="this.style.background='#D1FAE5';this.style.color='#10B981'">
+                    <i data-feather="download" style="width: 15px; height: 15px; flex-shrink: 0;"></i>
+                    Certificate
                   </a>
                 ` : `
-                  <button onclick="DashboardView.handleCertificateClick('${app.id}')" class="btn btn-primary btn-sm" style="flex: 1; min-width: 100px; background: ${certStatusColor} !important; color: white !important; font-size: 12px; padding: 8px 10px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
-                    <i data-feather="award" style="width: 14px; height: 14px;"></i> Cert
+                  <button onclick="DashboardView.handleCertificateClick('${app.id}')"
+                          title="${certStatusMsg}"
+                          style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; min-height: 40px; font-size: 12px; font-weight: 600; border-radius: 8px; border: 1.5px solid ${certStatusColor}; color: ${certStatusColor}; background: #FFFBEB; cursor: pointer; transition: background 0.2s, color 0.2s; flex: 1; min-width: 110px; justify-content: center;">
+                    <i data-feather="award" style="width: 15px; height: 15px; flex-shrink: 0;"></i>
+                    Certificate
                   </button>
                 `}
-                <button onclick="DashboardView.openWorkspace('${app.id}')" class="btn btn-primary btn-sm" style="flex: 1; min-width: 100px; background: var(--color-primary-blue) !important; color: white !important; font-size: 12px; padding: 8px 10px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
-                  <i data-feather="edit-3" style="width: 14px; height: 14px;"></i> Tasks
+
+                <!-- Tasks -->
+                <button onclick="DashboardView.openWorkspace('${app.id}')"
+                        style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; min-height: 40px; font-size: 12px; font-weight: 600; border-radius: 8px; border: none; background: var(--color-primary-blue); color: #fff; cursor: pointer; transition: opacity 0.2s; flex: 1; min-width: 110px; justify-content: center;"
+                        onmouseover="this.style.opacity='0.85'"
+                        onmouseout="this.style.opacity='1'">
+                  <i data-feather="edit-3" style="width: 15px; height: 15px; flex-shrink: 0;"></i>
+                  Tasks
                 </button>
               </div>
             </div>
@@ -325,9 +347,17 @@ const DashboardView = {
                       <p style="font-size: 12px; color: var(--color-gray-text); margin: 0;">${app.internship_title}</p>
                       <span style="font-size: 10px; font-weight: 700; color: #10B981; background: #D1FAE5; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-top: 6px;">✅ ISSUED</span>
                     </div>
-                    <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
-                      <a href="/api/applications/${app.id}/offer-letter.pdf" target="_blank" class="btn btn-outline btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px;">👁️ View</a>
-                      <a href="/api/applications/${app.id}/offer-letter.pdf" download class="btn btn-primary btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px; background: var(--color-primary-blue) !important; display: flex; align-items: center; gap: 4px;"><i data-feather="download" style="width: 14px; height: 14px;"></i> Download</a>
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; align-items: center;">
+                      <a href="/api/applications/${app.id}/offer-letter.pdf" target="_blank"
+                         title="View Offer Letter"
+                         style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; font-size: 11px; font-weight: 600; border-radius: 7px; border: 1.5px solid #94A3B8; color: #475569; background: #fff; text-decoration: none; min-height: 32px; cursor: pointer;">
+                        <i data-feather="eye" style="width: 13px; height: 13px;"></i> View
+                      </a>
+                      <a href="/api/applications/${app.id}/offer-letter.pdf" download
+                         title="Download Offer Letter"
+                         style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; font-size: 11px; font-weight: 600; border-radius: 7px; border: 1.5px solid var(--color-primary-blue); color: #fff; background: var(--color-primary-blue); text-decoration: none; min-height: 32px; cursor: pointer;">
+                        <i data-feather="download" style="width: 13px; height: 13px;"></i> Download
+                      </a>
                     </div>
                   </div>
                 </div>
@@ -351,12 +381,23 @@ const DashboardView = {
                         ` : ''}
                       `}
                     </div>
-                    <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end;">
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; align-items: center;">
                       ${isPaid && isCompleted && app.certificate_id ? `
-                        <a href="/api/certificates/${app.certificate_id}/pdf" target="_blank" class="btn btn-outline btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px;">👁️ View</a>
-                        <a href="/api/certificates/${app.certificate_id}/pdf" download class="btn btn-primary btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px; background: var(--color-primary-blue) !important; display: flex; align-items: center; gap: 4px;"><i data-feather="download" style="width: 14px; height: 14px;"></i> Download</a>
+                        <a href="/api/certificates/${app.certificate_id}/pdf" target="_blank"
+                           title="View Certificate"
+                           style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; font-size: 11px; font-weight: 600; border-radius: 7px; border: 1.5px solid #94A3B8; color: #475569; background: #fff; text-decoration: none; min-height: 32px; cursor: pointer;">
+                          <i data-feather="eye" style="width: 13px; height: 13px;"></i> View
+                        </a>
+                        <a href="/api/certificates/${app.certificate_id}/pdf" download
+                           title="Download Certificate"
+                           style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; font-size: 11px; font-weight: 600; border-radius: 7px; border: 1.5px solid #10B981; color: #fff; background: #10B981; text-decoration: none; min-height: 32px; cursor: pointer;">
+                          <i data-feather="download" style="width: 13px; height: 13px;"></i> Download
+                        </a>
                       ` : `
-                        <button onclick="DashboardView.handleCertificateClick('${app.id}')" class="btn btn-primary btn-sm" style="font-size: 11px; padding: 6px 10px; min-height: 32px; background: #D97706 !important;">💳 Get Certificate</button>
+                        <button onclick="DashboardView.handleCertificateClick('${app.id}')"
+                                style="display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px; font-size: 11px; font-weight: 600; border-radius: 7px; border: none; background: #D97706; color: #fff; min-height: 32px; cursor: pointer;">
+                          💳 Get Certificate
+                        </button>
                       `}
                     </div>
                   </div>

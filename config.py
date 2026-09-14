@@ -50,6 +50,8 @@ class Config:
 
     # Resend Email API
     RESEND_API_KEY = (os.getenv("RESEND_API_KEY") or "").strip()
+    RESEND_FROM_EMAIL = (os.getenv("RESEND_FROM_EMAIL") or "notifications@webintern.in").strip()
+    RESEND_SUPPORT_EMAIL = (os.getenv("RESEND_SUPPORT_EMAIL") or "support@webintern.in").strip()
 
     # Razorpay Integration
     RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID", "")
