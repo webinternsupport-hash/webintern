@@ -376,3 +376,55 @@ def admin_resend_certificate_email(payment_id):
         'success': succ,
         'certificate_id': cert_info
     }), 200
+
+@payment_bp.route('/api/payments/me', methods=['GET'])
+@payment_bp.route('/api/payments/history', methods=['GET'])
+@jwt_required
+def get_my_payment_history():
+    """Get payment and transaction history for the logged-in student."""
+    user = request.user
+    user_email = user.get('email', '')
+    
+    # Fetch all payments for this user
+    payments = query_db("""
+        SELECT p.*, 
+               a.id as application_id,
+               i.title as internship_title,
+               i.slug as internship_slug,
+               c.id as certificate_id,
+               c.certificate_url
+        FROM payments p
+        LEFT JOIN applications a ON p.certificate_id = a.certificate_id OR p.certificate_id = a.id
+        LEFT JOIN internships i ON a.internship_id = i.id
+        LEFT JOIN certificates c ON a.id = c.application_id
+        WHERE p.user_id = ? OR p.user_id IN (SELECT id FROM profiles WHERE LOWER(email) = LOWER(?))
+        ORDER BY p.created_at DESC
+    """, (user['sub'], user_email)) or []
+    
+    # Format response
+    payment_history = []
+    for pmt in payments:
+        payment_history.append({
+            'id': pmt['id'],
+            'order_id': pmt.get('razorpay_order_id'),
+            'payment_id': pmt.get('razorpay_payment_id'),
+            'amount_inr': pmt.get('amount_inr'),
+            'status': pmt.get('status'),
+            'certificate_fee': pmt.get('amount_inr'),
+            'application_id': pmt.get('application_id'),
+            'certificate_id': pmt.get('certificate_id'),
+            'internship_title': pmt.get('internship_title'),
+            'internship_slug': pmt.get('internship_slug'),
+            'certificate_url': pmt.get('certificate_url'),
+            'created_at': pmt.get('created_at'),
+            'paid_at': pmt.get('paid_at'),
+            'transaction_date': pmt.get('created_at'),
+            'description': f"Certificate Fee - {pmt.get('internship_title', 'Certificate')}"
+        })
+    
+    return jsonify({
+        'payments': payment_history,
+        'transactions': payment_history,
+        'total_paid': sum([p['amount_inr'] for p in payment_history if p['status'] == 'paid']),
+        'total_transactions': len(payment_history)
+    }), 200

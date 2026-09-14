@@ -320,6 +320,25 @@ def login_user():
                         'auth_provider': 'email'
                     })
 
+                    # CRITICAL FIX: Fetch user's enrolled internships at login
+                    enrollments = query_db("""
+                        SELECT a.*, 
+                               COALESCE(i.title, a.internship_id) as internship_title, 
+                               COALESCE(i.slug, '') as internship_slug, 
+                               COALESCE(i.duration_weeks, 4) as duration_weeks, 
+                               COALESCE(i.cover_image_url, '') as cover_image_url,
+                               COALESCE(i.company_name, 'Web Intern Platform') as company_name,
+                               COALESCE(i.location, 'Virtual') as location,
+                               COALESCE(i.internship_emoji, '💼') as internship_emoji,
+                               COALESCE(s.name, 'Unknown Sector') as sector_name
+                        FROM applications a
+                        LEFT JOIN internships i ON a.internship_id = i.id
+                        LEFT JOIN sectors s ON i.sector_id = s.id
+                        WHERE a.user_id = ?
+                        ORDER BY a.applied_at DESC
+                        LIMIT 10
+                    """, (local_profile['id'],)) or []
+
                     resp = make_response(jsonify({
                         'message': 'Login successful.',
                         'token': token,
@@ -331,10 +350,11 @@ def login_user():
                             'college': local_profile.get('college', ''),
                             'profile_complete': True,
                             'role': 'student'
-                        }
+                        },
+                        'enrollments': enrollments
                     }))
                     resp.set_cookie('access_token', token, httponly=True, samesite='Lax', max_age=86400)
-                    print(f"[LOGIN SUCCESS] User {email} logged in successfully")
+                    print(f"[LOGIN SUCCESS] User {email} logged in successfully with {len(enrollments)} enrollments")
                     return resp, 200
                 else:
                     print(f"[LOGIN DEBUG] ❌ PASSWORD MISMATCH - bcrypt.checkpw returned False")
@@ -405,6 +425,25 @@ def login_user():
             'auth_provider': 'email'
         })
 
+        # CRITICAL FIX: Fetch user's enrolled internships at login
+        enrollments = query_db("""
+            SELECT a.*, 
+                   COALESCE(i.title, a.internship_id) as internship_title, 
+                   COALESCE(i.slug, '') as internship_slug, 
+                   COALESCE(i.duration_weeks, 4) as duration_weeks, 
+                   COALESCE(i.cover_image_url, '') as cover_image_url,
+                   COALESCE(i.company_name, 'Web Intern Platform') as company_name,
+                   COALESCE(i.location, 'Virtual') as location,
+                   COALESCE(i.internship_emoji, '💼') as internship_emoji,
+                   COALESCE(s.name, 'Unknown Sector') as sector_name
+            FROM applications a
+            LEFT JOIN internships i ON a.internship_id = i.id
+            LEFT JOIN sectors s ON i.sector_id = s.id
+            WHERE a.user_id = ?
+            ORDER BY a.applied_at DESC
+            LIMIT 10
+        """, (user_id,)) or []
+
         resp = make_response(jsonify({
             'message': 'Login successful.',
             'token': token,
@@ -416,7 +455,8 @@ def login_user():
                 'college': profile.get('college', ''),
                 'profile_complete': True,
                 'role': 'student'
-            }
+            },
+            'enrollments': enrollments
         }))
         resp.set_cookie('access_token', token, httponly=True, samesite='Lax', max_age=86400)
         return resp, 200
