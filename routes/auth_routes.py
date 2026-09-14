@@ -329,15 +329,15 @@ def login_user():
                                COALESCE(i.cover_image_url, '') as cover_image_url,
                                COALESCE(i.company_name, 'Web Intern Platform') as company_name,
                                COALESCE(i.location, 'Virtual') as location,
-                               COALESCE(i.internship_emoji, '💼') as internship_emoji,
+                               '💼' as internship_emoji,
                                COALESCE(s.name, 'Unknown Sector') as sector_name
                         FROM applications a
                         LEFT JOIN internships i ON a.internship_id = i.id
                         LEFT JOIN sectors s ON i.sector_id = s.id
-                        WHERE a.user_id = ?
+                        WHERE a.user_id = ? OR a.user_id IN (SELECT id FROM profiles WHERE LOWER(email) = LOWER(?))
                         ORDER BY a.applied_at DESC
                         LIMIT 10
-                    """, (local_profile['id'],)) or []
+                    """, (local_profile['id'], email)) or []
 
                     resp = make_response(jsonify({
                         'message': 'Login successful.',
@@ -434,15 +434,15 @@ def login_user():
                    COALESCE(i.cover_image_url, '') as cover_image_url,
                    COALESCE(i.company_name, 'Web Intern Platform') as company_name,
                    COALESCE(i.location, 'Virtual') as location,
-                   COALESCE(i.internship_emoji, '💼') as internship_emoji,
+                   '💼' as internship_emoji,
                    COALESCE(s.name, 'Unknown Sector') as sector_name
             FROM applications a
             LEFT JOIN internships i ON a.internship_id = i.id
             LEFT JOIN sectors s ON i.sector_id = s.id
-            WHERE a.user_id = ?
+            WHERE a.user_id = ? OR a.user_id IN (SELECT id FROM profiles WHERE LOWER(email) = LOWER(?))
             ORDER BY a.applied_at DESC
             LIMIT 10
-        """, (user_id,)) or []
+        """, (user_id, email)) or []
 
         resp = make_response(jsonify({
             'message': 'Login successful.',

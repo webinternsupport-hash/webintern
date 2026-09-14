@@ -1,3 +1,15 @@
+import sys
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+if hasattr(sys.stderr, 'reconfigure'):
+    try:
+        sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
 import sqlite3
 import uuid
 import json
@@ -221,6 +233,7 @@ def ensure_migrations(cursor):
     _add_col('internships', 'project_name', "TEXT DEFAULT 'Enterprise Internship Project'")
     _add_col('internships', 'certificate_eligible', 'BOOLEAN DEFAULT TRUE')
     _add_col('internships', 'active', 'BOOLEAN DEFAULT TRUE')
+    _add_col('internships', 'internship_emoji', "TEXT DEFAULT '💼'")
 
     # Applications / Enrollments extensions
     _add_col('applications', 'start_date', 'TEXT')
