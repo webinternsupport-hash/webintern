@@ -21,66 +21,66 @@ const AuthViews = {
             <form id="register-form">
               <div class="form-group">
                 <label class="form-label">Full Name *</label>
-                <div style="position: relative;">
-                  <i data-feather="user" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--color-gray-text); width: 18px;"></i>
-                  <input type="text" id="reg-name" class="form-input" style="padding-left: 42px;" placeholder="John Doe" required />
+                <div style="position: relative; display: flex; align-items: center;">
+                  <i data-feather="user" style="position: absolute; left: 14px; color: var(--color-gray-text); width: 18px; height: 18px; pointer-events: none; flex-shrink: 0;"></i>
+                  <input type="text" id="reg-name" class="form-input" style="padding-left: 48px; padding-right: 16px; width: 100%; box-sizing: border-box;" placeholder="John Doe" required />
                 </div>
               </div>
 
               <div class="form-group">
                 <label class="form-label">Email Address *</label>
-                <div style="position: relative;">
-                  <i data-feather="mail" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--color-gray-text); width: 18px;"></i>
-                  <input type="email" id="reg-email" class="form-input" style="padding-left: 42px;" placeholder="you@example.com" required />
+                <div style="position: relative; display: flex; align-items: center;">
+                  <i data-feather="mail" style="position: absolute; left: 14px; color: var(--color-gray-text); width: 18px; height: 18px; pointer-events: none; flex-shrink: 0;"></i>
+                  <input type="email" id="reg-email" class="form-input" style="padding-left: 48px; padding-right: 16px; width: 100%; box-sizing: border-box;" placeholder="you@example.com" required />
                 </div>
               </div>
 
               <div class="form-group">
                 <label class="form-label">Mobile Number</label>
-                <div style="display: flex; gap: 8px;">
-                  <select id="reg-country-code" class="form-input" style="width: 110px; padding: 12px 8px; font-size: 13px;">
-                    <option value="+91">+91 — IN</option>
-                    <option value="+1">+1 — US</option>
-                    <option value="+44">+44 — UK</option>
-                    <option value="+61">+61 — AU</option>
-                    <option value="+971">+971 — AE</option>
+                <div style="display: flex; gap: 8px; align-items: stretch;">
+                  <select id="reg-country-code" class="form-input" style="flex-shrink: 0; width: auto; min-width: 80px; padding: 12px 10px; font-size: 14px;">
+                    <option value="+91">+91</option>
+                    <option value="+1">+1</option>
+                    <option value="+44">+44</option>
+                    <option value="+61">+61</option>
+                    <option value="+971">+971</option>
                   </select>
-                  <div style="position: relative; flex-grow: 1;">
-                    <i data-feather="phone" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--color-gray-text); width: 18px;"></i>
-                    <input type="tel" id="reg-phone" class="form-input" style="padding-left: 42px;" placeholder="9876543210" />
+                  <div style="position: relative; display: flex; align-items: center; flex: 1;">
+                    <i data-feather="phone" style="position: absolute; left: 14px; color: var(--color-gray-text); width: 18px; height: 18px; pointer-events: none; flex-shrink: 0;"></i>
+                    <input type="tel" id="reg-phone" class="form-input" style="padding-left: 48px; padding-right: 16px; width: 100%; box-sizing: border-box;" placeholder="9876543210" />
                   </div>
                 </div>
               </div>
 
               <div class="form-group">
                 <label class="form-label">College / University Name *</label>
-                <div style="position: relative;">
-                  <i data-feather="book" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--color-gray-text); width: 18px;"></i>
-                  <input type="text" id="reg-college" class="form-input" style="padding-left: 42px;" placeholder="e.g. Saveetha Dental College / Anna University" required />
+                <div style="position: relative; display: flex; align-items: center;">
+                  <i data-feather="book" style="position: absolute; left: 14px; color: var(--color-gray-text); width: 18px; height: 18px; pointer-events: none; flex-shrink: 0;"></i>
+                  <input type="text" id="reg-college" class="form-input" style="padding-left: 48px; padding-right: 16px; width: 100%; box-sizing: border-box;" placeholder="e.g. Saveetha Dental College / Anna University" required />
                 </div>
               </div>
 
               <div class="form-group">
                 <label class="form-label">Department / Specialization *</label>
-                <div style="position: relative;">
-                  <i data-feather="award" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--color-gray-text); width: 18px;"></i>
-                  <input type="text" id="reg-department" class="form-input" style="padding-left: 42px;" placeholder="e.g. Dental Surgery (BDS) / Computer Science" required />
+                <div style="position: relative; display: flex; align-items: center;">
+                  <i data-feather="award" style="position: absolute; left: 14px; color: var(--color-gray-text); width: 18px; height: 18px; pointer-events: none; flex-shrink: 0;"></i>
+                  <input type="text" id="reg-department" class="form-input" style="padding-left: 48px; padding-right: 16px; width: 100%; box-sizing: border-box;" placeholder="e.g. Dental Surgery (BDS) / Computer Science" required />
                 </div>
               </div>
 
               <div class="form-group">
                 <label class="form-label">Password *</label>
-                <div style="position: relative;">
-                  <i data-feather="lock" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--color-gray-text); width: 18px;"></i>
-                  <input type="password" id="reg-password" class="form-input" style="padding-left: 42px;" placeholder="Minimum 6 characters" minlength="6" required />
+                <div style="position: relative; display: flex; align-items: center;">
+                  <i data-feather="lock" style="position: absolute; left: 14px; color: var(--color-gray-text); width: 18px; height: 18px; pointer-events: none; flex-shrink: 0;"></i>
+                  <input type="password" id="reg-password" class="form-input" style="padding-left: 48px; padding-right: 16px; width: 100%; box-sizing: border-box;" placeholder="Minimum 6 characters" minlength="6" required />
                 </div>
               </div>
 
               <div class="form-group">
                 <label class="form-label">Confirm Password *</label>
-                <div style="position: relative;">
-                  <i data-feather="lock" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--color-gray-text); width: 18px;"></i>
-                  <input type="password" id="reg-confirm-password" class="form-input" style="padding-left: 42px;" placeholder="Re-enter password" minlength="6" required />
+                <div style="position: relative; display: flex; align-items: center;">
+                  <i data-feather="lock" style="position: absolute; left: 14px; color: var(--color-gray-text); width: 18px; height: 18px; pointer-events: none; flex-shrink: 0;"></i>
+                  <input type="password" id="reg-confirm-password" class="form-input" style="padding-left: 48px; padding-right: 16px; width: 100%; box-sizing: border-box;" placeholder="Re-enter password" minlength="6" required />
                 </div>
               </div>
 
@@ -196,9 +196,9 @@ const AuthViews = {
             <form id="login-form">
               <div class="form-group">
                 <label class="form-label">Email Address</label>
-                <div style="position: relative;">
-                  <i data-feather="mail" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--color-gray-text); width: 18px;"></i>
-                  <input type="email" id="login-email" class="form-input" style="padding-left: 42px;" placeholder="you@example.com" required />
+                <div style="position: relative; display: flex; align-items: center;">
+                  <i data-feather="mail" style="position: absolute; left: 14px; color: var(--color-gray-text); width: 18px; height: 18px; pointer-events: none; flex-shrink: 0;"></i>
+                  <input type="email" id="login-email" class="form-input" style="padding-left: 48px; padding-right: 16px; width: 100%; box-sizing: border-box;" placeholder="you@example.com" required />
                 </div>
               </div>
 
@@ -207,9 +207,9 @@ const AuthViews = {
                   <label class="form-label" style="margin-bottom: 0;">Password</label>
                   <a href="javascript:void(0)" onclick="AuthViews.handleForgotPassword()" style="font-size: 13px; color: var(--color-accent-blue); font-weight: 500;">Forgot password?</a>
                 </div>
-                <div style="position: relative;">
-                  <i data-feather="lock" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--color-gray-text); width: 18px;"></i>
-                  <input type="password" id="login-password" class="form-input" style="padding-left: 42px;" placeholder="Enter your password" required />
+                <div style="position: relative; display: flex; align-items: center;">
+                  <i data-feather="lock" style="position: absolute; left: 14px; color: var(--color-gray-text); width: 18px; height: 18px; pointer-events: none; flex-shrink: 0;"></i>
+                  <input type="password" id="login-password" class="form-input" style="padding-left: 48px; padding-right: 16px; width: 100%; box-sizing: border-box;" placeholder="Enter your password" required />
                 </div>
               </div>
 

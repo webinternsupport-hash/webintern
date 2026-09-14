@@ -115,15 +115,16 @@ const API = {
         }
       }
 
-      // Handle token expiration
-      if (response.status === 401 && data?.code === 'INVALID_TOKEN') {
-        console.warn('[Token Expired] Clearing auth data');
+      // Handle token expiration or missing auth
+      if (response.status === 401 && (data?.code === 'INVALID_TOKEN' || data?.code === 'UNAUTHORIZED')) {
+        console.warn('[Auth Failed] Code:', data.code, 'Clearing auth data');
         this.setAuthToken(null);
         this.setCurrentUser(null);
         
         // Redirect to login
         if (!endpoint.includes('/api/auth/')) {
-          window.location.hash = '#/login';
+          const after = encodeURIComponent(window.location.hash || '#/dashboard');
+          window.location.hash = `#/login?redirect=${after}`;
           throw new Error('Session expired. Please login again.');
         }
       }

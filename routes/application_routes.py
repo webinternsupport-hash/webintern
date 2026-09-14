@@ -19,193 +19,293 @@ application_bp = Blueprint('application_bp', __name__)
 @application_bp.route('/enrollments', methods=['POST'])
 @jwt_required
 def create_application():
-    user = request.user
-    data = request.get_json() or {}
-    internship_id = data.get('internship_id') or data.get('course_id')
-
-    if not internship_id:
-        return jsonify({'error': 'Internship / Course ID is required.'}), 400
-
-    internship = query_db("SELECT * FROM internships WHERE id = ?", (internship_id,), one=True)
-    if not internship:
-        return jsonify({'error': 'Selected internship program not found.'}), 404
-
-    # Check existing active application/enrollment
-    existing = query_db("SELECT * FROM applications WHERE user_id = ? AND internship_id = ?", (user['sub'], internship_id), one=True)
-    if existing:
-        print(f"[Application Already Exists] User: {user['sub']}, Internship: {internship_id}, App ID: {existing['id']}")
-        return jsonify({
-            'message': 'You have already applied to / enrolled in this internship.',
-            'application': existing,
-            'enrollment': existing
-        }), 200
-
-    app_id = str(uuid.uuid4())
-    now_dt = datetime.datetime.now()
-    start_date_str = now_dt.strftime("%B %d, %Y")
-    duration_weeks = internship.get('duration_weeks') or 4
-    end_dt = now_dt + datetime.timedelta(weeks=duration_weeks)
-    end_date_str = end_dt.strftime("%B %d, %Y")
-
-    offer_id = f"WI-OFFER-2026-{app_id[:6].upper()}"
-    cert_id = f"WI-CERT-2026-{app_id[:6].upper()}"
-
-    # ✅ ENSURE APPLICATION IS SAVED WITH ALL FIELDS
     try:
-        execute_db("""
-            INSERT INTO applications (id, user_id, internship_id, status, offer_letter_sent, start_date, end_date, offer_letter_id, certificate_id, completion_status)
-            VALUES (?, ?, ?, 'active', 1, ?, ?, ?, ?, 'pending')
-        """, (app_id, user['sub'], internship_id, start_date_str, end_date_str, offer_id, cert_id))
-        
-        print(f"[Application Created] ID: {app_id}, User: {user['sub']}, Internship: {internship_id}")
-    except Exception as e:
-        print(f"[Application Creation Error] {e}")
-        return jsonify({'error': f'Failed to save application: {str(e)}'}), 500
+        user = request.user
+        data = request.get_json() or {}
+        internship_id = data.get('internship_id') or data.get('course_id')
 
-    # ✅ SYNC TO SUPABASE
-    try:
-        sync_enrollment_to_supabase(user['sub'], {
-            'internship_id': internship_id,
-            'status': 'active',
-            'start_date': start_date_str,
-            'end_date': end_date_str,
-            'offer_letter_id': offer_id,
-            'certificate_id': cert_id
-        })
-    except Exception as e:
-        print(f"[Supabase Sync Warning] {e}")
+        warnings = []
 
-    # Fetch user profile to populate Master Internship Record
-    profile = query_db("SELECT * FROM profiles WHERE id = ?", (user['sub'],), one=True)
-    student_name = profile['full_name'] if profile and 'full_name' in profile else user.get('name', 'Student Candidate')
-    to_email = profile['email'] if profile and 'email' in profile else user.get('email')
-    student_mobile = (profile.get('phone') or profile.get('mobile') or "") if profile else ""
-    student_college = (profile.get('college') or data.get('college') or data.get('college_name') or "Recognized College / Institution") if profile else (data.get('college') or "Recognized College / Institution")
-    student_dept = (profile.get('department') or data.get('department') or data.get('department_name') or internship['title'].replace(" Internship", "")) if profile else (data.get('department') or internship['title'].replace(" Internship", ""))
-    student_degree = (profile.get('degree') or data.get('degree') or "Recognized Degree Program") if profile else "Recognized Degree Program"
+        if not internship_id:
+            return jsonify({'error': 'Internship / Course ID is required.'}), 400
 
-    # Create Master Record (Single Source of Truth)
-    from utils.master_record_service import save_master_record
-    master_data = {
-        "student_full_name": student_name,
-        "student_email": to_email,
-        "student_mobile": student_mobile,
-        "college_name": student_college,
-        "degree": student_degree,
-        "department": student_dept,
-        "internship_position": f"{internship['title']} Intern",
-        "internship_domain": internship['title'],
-        "internship_start_date": start_date_str,
-        "internship_end_date": end_date_str,
-        "project_title": internship.get('project_name') or f"{internship['title']} Capstone Project",
-        "mentor_name": internship.get('guide_name') or "Dr. A. K. Sharma",
-        "mentor_designation": "Technical Director",
-        "offer_id": offer_id,
-        "certificate_id": cert_id,
-        "user_id": user['sub'],
-        "application_id": app_id
-    }
-    master_rec, _ = save_master_record(master_data)
+        internship = query_db("SELECT * FROM internships WHERE id = ?", (internship_id,), one=True)
+        if not internship:
+            return jsonify({'error': 'Selected internship program not found.'}), 404
 
-    date_str = start_date_str
-    
-    # ✅ PRE-GENERATE AND CACHE OFFER LETTER PDF
-    try:
-        pdf_bytes = generate_offer_letter_pdf(
-            student_name=student_name,
-            internship_title=f"{internship['title']} Intern",
-            date_str=date_str,
-            save_id=app_id,
-            company_name=internship.get('company_name') or "Web Intern Platform",
-            start_date=start_date_str,
-            end_date=end_date_str,
-            duration=f"{duration_weeks} Weeks",
-            location=internship.get('location') or "Virtual / Remote",
-            skills_tools=internship.get('skills_tools'),
-            tasks_projects=internship.get('tasks_projects'),
-            offer_id=offer_id,
-            college_name=student_college,
-            department=student_dept
-        )
-        
-        # Save PDF to disk for instant retrieval
-        os.makedirs(Config.GENERATED_OFFERS_DIR, exist_ok=True)
-        file_path = os.path.join(Config.GENERATED_OFFERS_DIR, f"offer_{app_id}.pdf")
-        with open(file_path, 'wb') as f:
-            f.write(pdf_bytes)
-        
-        print(f"[Offer Letter Generated] App: {app_id}, File: {file_path}, Size: {len(pdf_bytes)} bytes")
-    except Exception as e:
-        print(f"[PDF Generation Error] {e}")
-        file_path = None
-        pdf_bytes = b""
+        existing = query_db("SELECT * FROM applications WHERE user_id = ? AND internship_id = ?", (user['sub'], internship_id), one=True)
+        if existing:
+            print(f"[Application Already Exists] User: {user['sub']}, Internship: {internship_id}, App ID: {existing['id']}")
+            return jsonify({
+                'message': 'You have already applied to / enrolled in this internship.',
+                'application': existing,
+                'enrollment': existing,
+                'warnings': []
+            }), 200
 
-    # Save document record in DB
-    doc_id = str(uuid.uuid4())
-    
-    # Save document record in DB
-    email_status = "QUEUED"
-    msg_id = f"async_msg_{app_id[:8]}"
+        app_id = str(uuid.uuid4())
+        now_dt = datetime.datetime.now()
+        start_date_str = now_dt.strftime("%B %d, %Y")
+        duration_weeks = internship.get('duration_weeks') or 4
+        end_dt = now_dt + datetime.timedelta(weeks=duration_weeks)
+        end_date_str = end_dt.strftime("%B %d, %Y")
 
-    execute_db("""
-        INSERT INTO documents (id, application_id, student_id, document_type, document_number, file_path, status, email_status, email_message_id)
-        VALUES (?, ?, ?, 'OFFER_LETTER', ?, ?, 'ISSUED', ?, ?)
-    """, (doc_id, app_id, user['sub'], offer_id, file_path, email_status, msg_id))
+        offer_id = f"WI-OFFER-2026-{app_id[:6].upper()}"
+        cert_id = f"WI-CERT-2026-{app_id[:6].upper()}"
 
-    # Trigger transactional offer letter email (async in background thread for fast <100ms response)
-    def _do_send_email():
+        # ================================================
+        # 1) SAVE APPLICATION (CORE) - MUST SUCCEED
+        # ================================================
         try:
-            send_offer_letter_email(
-                to_email=to_email,
-                student_name=student_name,
-                internship_title=internship['title'],
-                pdf_bytes=pdf_bytes if pdf_bytes else None,
+            execute_db("""
+                INSERT INTO applications (id, user_id, internship_id, status, offer_letter_sent, start_date, end_date, offer_letter_id, certificate_id, completion_status, applied_at)
+                VALUES (?, ?, ?, 'active', 1, ?, ?, ?, ?, 'pending', CURRENT_TIMESTAMP)
+            """, (app_id, user['sub'], internship_id, start_date_str, end_date_str, offer_id, cert_id))
+            print(f"[Application Created] ID: {app_id}, User: {user['sub']}, Internship: {internship_id}")
+        except Exception as e:
+            print(f"[Application Creation CRITICAL ERROR] {e}")
+            if 'UNIQUE constraint' in str(e):
+                return jsonify({'error': 'You have already applied for this internship.'}), 400
+            elif 'FOREIGN KEY constraint' in str(e):
+                return jsonify({'error': 'Invalid internship selected. Please try again.'}), 400
+            else:
+                return jsonify({'error': 'Failed to save application. Please refresh the page and try again.'}), 500
+
+        # ================================================
+        # 2) SYNC TO SUPABASE (OPTIONAL)
+        # ================================================
+        try:
+            sync_enrollment_to_supabase(user['sub'], {
+                'internship_id': internship_id,
+                'status': 'active',
+                'start_date': start_date_str,
+                'end_date': end_date_str,
+                'offer_letter_id': offer_id,
+                'certificate_id': cert_id
+            })
+        except Exception as e:
+            print(f"[Supabase Sync Warning] {e}")
+            warnings.append("Cloud sync not available; enrollment saved locally.")
+
+        # ================================================
+        # 3) LOAD PROFILE DEFAULTS
+        # ================================================
+        try:
+            profile = query_db("SELECT * FROM profiles WHERE id = ?", (user['sub'],), one=True)
+        except Exception as e:
+            print(f"[Profile Load Warning] {e}")
+            profile = None
+            warnings.append("Could not read your profile; using default values on documents.")
+
+        student_name = (profile.get('full_name') if profile else None) or user.get('name') or "Student Candidate"
+        to_email = (profile.get('email') if profile else None) or user.get('email') or ""
+        student_mobile = (profile.get('phone') or profile.get('mobile') or "") if profile else ""
+        student_college = (profile.get('college') or data.get('college') or data.get('college_name') or "Recognized College / Institution") if profile else (data.get('college') or "Recognized College / Institution")
+        student_dept = (profile.get('department') or data.get('department') or data.get('department_name') or internship['title'].replace(" Internship", "")) if profile else (data.get('department') or internship['title'].replace(" Internship", ""))
+        student_degree = (profile.get('degree') or data.get('degree') or "Recognized Degree Program") if profile else "Recognized Degree Program"
+
+        # ================================================
+        # 4) MASTER RECORD (OPTIONAL)
+        # ================================================
+        try:
+            from utils.master_record_service import save_master_record
+            master_data = {
+                "student_full_name": student_name or "Student Candidate",
+                "student_email": to_email or "",
+                "student_mobile": student_mobile or "",
+                "college_name": student_college or "Recognized College / Institution",
+                "degree": student_degree or "Recognized Degree Program",
+                "department": student_dept or "Technology",
+                "internship_position": f"{internship['title']} Intern",
+                "internship_domain": internship['title'],
+                "internship_start_date": start_date_str,
+                "internship_end_date": end_date_str,
+                "project_title": internship.get('project_name') or f"{internship['title']} Capstone Project",
+                "mentor_name": internship.get('guide_name') or "Dr. A. K. Sharma",
+                "mentor_designation": "Technical Director",
+                "offer_id": offer_id,
+                "certificate_id": cert_id,
+                "user_id": user['sub'],
+                "application_id": app_id
+            }
+            master_rec, master_errors = save_master_record(master_data)
+            if master_errors:
+                print(f"[Master Record Warning] {master_errors}")
+                warnings.append(f"Record validation: {', '.join(master_errors[:2])}")
+        except Exception as e:
+            print(f"[Master Record Error] {e}")
+            import traceback
+            traceback.print_exc()
+            warnings.append("Internal record creation skipped; your enrollment is still saved.")
+
+        date_str = start_date_str
+
+        # ================================================
+        # 5) GENERATE OFFER LETTER PDF (OPTIONAL)
+        # ================================================
+        pdf_bytes = b""
+        file_path = ""
+        try:
+            pdf_bytes = generate_offer_letter_pdf(
+                student_name=student_name or "Student Candidate",
+                internship_title=internship.get('title') or "Internship",
+                date_str=date_str,
+                save_id=app_id,
+                company_name=internship.get('company_name') or "Web Intern Platform",
                 start_date=start_date_str,
                 end_date=end_date_str,
                 duration=f"{duration_weeks} Weeks",
-                offer_id=offer_id
+                location=internship.get('location') or "Virtual / Remote",
+                skills_tools=internship.get('skills_tools'),
+                tasks_projects=internship.get('tasks_projects'),
+                offer_id=offer_id,
+                college_name=student_college or "Institution",
+                department=student_dept or "Department"
             )
-        except Exception as ex:
-            print(f"[Async Offer Email Warning]: {ex}")
+            try:
+                os.makedirs(Config.GENERATED_OFFERS_DIR, exist_ok=True)
+                file_path = os.path.join(Config.GENERATED_OFFERS_DIR, f"offer_{app_id}.pdf")
+                with open(file_path, 'wb') as f:
+                    f.write(pdf_bytes)
+                print(f"[Offer Letter Generated] App: {app_id}, File: {file_path}, Size: {len(pdf_bytes)} bytes")
+            except Exception as save_err:
+                print(f"[PDF Save Warning] Could not save PDF to disk: {save_err}")
+                file_path = ""
+                warnings.append("Offer letter file could not be cached; it will be re-generated when you download it.")
+        except Exception as e:
+            print(f"[PDF Generation Warning] Could not generate PDF: {e}")
+            import traceback
+            traceback.print_exc()
+            pdf_bytes = b""
+            file_path = ""
+            warnings.append("Offer letter PDF could not be generated now; please download it from the dashboard later.")
 
-    threading.Thread(target=_do_send_email, daemon=True).start()
+        # ================================================
+        # 6) DOCUMENT RECORD (OPTIONAL)
+        # ================================================
+        doc_id = str(uuid.uuid4())
+        email_status = "QUEUED"
+        msg_id = f"async_msg_{app_id[:8]}"
+        try:
+            execute_db("""
+                INSERT INTO documents (id, application_id, student_id, document_type, document_number, file_path, status, email_status, email_message_id)
+                VALUES (?, ?, ?, 'OFFER_LETTER', ?, ?, 'ISSUED', ?, ?)
+            """, (doc_id, app_id, user['sub'], offer_id, file_path or "", email_status, msg_id))
+        except Exception as e:
+            print(f"[Documents Table INSERT Warning] {e}")
+            doc_id = None
+            warnings.append("Document tracking not saved; your enrollment is unaffected.")
 
-    # Trigger Google Sheets sync
-    sync_offer_letter_to_google_sheets({
-        "offer_id": offer_id,
-        "student_id": user['sub'],
-        "student_name": student_name,
-        "email": to_email,
-        "mobile": student_mobile,
-        "college": student_college,
-        "department": student_dept,
-        "degree": student_degree,
-        "course_name": internship['title'],
-        "role": internship.get('role') or internship['title'],
-        "company": internship.get('company_name') or "Web Intern Platform",
-        "start_date": start_date_str,
-        "end_date": end_date_str,
-        "duration": f"{duration_weeks} Weeks",
-        "location": internship.get('location') or "Virtual / Remote",
-        "issue_date": date_str,
-        "document_status": "ISSUED",
-        "email_status": email_status,
-        "email_message_id": msg_id
-    }, document_id=doc_id)
+        # ================================================
+        # 7) SEND EMAIL (ASYNC BACKGROUND THREAD, OPTIONAL)
+        # ================================================
+        def _do_send_email():
+            try:
+                print(f"[Email Thread Start] Sending offer letter to {to_email}")
+                if not to_email or '@' not in to_email:
+                    print("[Email Skip] No valid email address.")
+                    return
+                success, result = send_offer_letter_email(
+                    to_email=to_email,
+                    student_name=student_name,
+                    internship_title=internship['title'],
+                    pdf_bytes=pdf_bytes if pdf_bytes else None,
+                    start_date=start_date_str,
+                    end_date=end_date_str,
+                    duration=f"{duration_weeks} Weeks",
+                    offer_id=offer_id
+                )
+                if not doc_id:
+                    return
+                if success:
+                    print(f"[✅ Email Success] Updated document record with SENT status")
+                    execute_db("""
+                        UPDATE documents SET email_status = 'SENT', email_message_id = ?
+                        WHERE id = ?
+                    """, (str(result.get('id', msg_id)) if isinstance(result, dict) else msg_id, doc_id))
+                else:
+                    print(f"[❌ Email Failed] {result}")
+                    execute_db("""
+                        UPDATE documents SET email_status = 'FAILED', email_message_id = ?
+                        WHERE id = ?
+                    """, (str(result)[:200], doc_id))
+            except Exception as ex:
+                print(f"[❌ Async Email Exception]: {ex}")
+                try:
+                    if doc_id:
+                        execute_db("""
+                            UPDATE documents SET email_status = 'ERROR'
+                            WHERE id = ?
+                        """, (doc_id,))
+                except:
+                    pass
 
-    # ✅ VERIFY APPLICATION WAS SAVED
-    new_app = query_db("SELECT * FROM applications WHERE id = ?", (app_id,), one=True)
-    if not new_app:
-        print(f"[ERROR] Application not found after creation: {app_id}")
-        return jsonify({'error': 'Application was not saved properly. Please try again.'}), 500
-    
-    print(f"[Application Verified] Application saved successfully: {app_id}")
-    return jsonify({
-        'message': 'Application & Enrollment submitted successfully! Your official offer letter has been generated and sent to your email.',
-        'application': new_app,
-        'enrollment': new_app,
-        'offer_letter_id': offer_id
-    }), 201
+        try:
+            email_thread = threading.Thread(target=_do_send_email, daemon=True)
+            email_thread.start()
+            print(f"[Email Thread] Started for application {app_id}")
+        except Exception as e:
+            print(f"[Email Thread Start Warning] {e}")
+            warnings.append("Email service not available right now; download the offer letter from the dashboard.")
+
+        # ================================================
+        # 8) GOOGLE SHEETS SYNC (ALREADY ASYNC INSIDE, WRAP FOR SAFETY)
+        # ================================================
+        try:
+            sync_offer_letter_to_google_sheets({
+                "offer_id": offer_id,
+                "student_id": user['sub'],
+                "student_name": student_name,
+                "email": to_email,
+                "mobile": student_mobile,
+                "college": student_college,
+                "department": student_dept,
+                "degree": student_degree,
+                "course_name": internship['title'],
+                "role": internship.get('role') or internship['title'],
+                "company": internship.get('company_name') or "Web Intern Platform",
+                "start_date": start_date_str,
+                "end_date": end_date_str,
+                "duration": f"{duration_weeks} Weeks",
+                "location": internship.get('location') or "Virtual / Remote",
+                "issue_date": date_str,
+                "document_status": "ISSUED",
+                "email_status": email_status,
+                "email_message_id": msg_id
+            }, document_id=doc_id)
+        except Exception as e:
+            print(f"[Google Sheets Sync Warning] {e}")
+            warnings.append("Google Sheets sync skipped.")
+
+        # ================================================
+        # 9) FINAL VERIFICATION + RETURN (MUST ALWAYS HIT)
+        # ================================================
+        new_app = query_db("SELECT * FROM applications WHERE id = ?", (app_id,), one=True)
+        if not new_app:
+            print(f"[ERROR] Application not found after creation: {app_id}")
+            return jsonify({'error': 'Application was not saved properly. Please try again.'}), 500
+
+        print(f"[Application Verified] Enrollment saved successfully: {app_id}")
+        message = 'Enrollment successful! Your internship has been saved to your account.'
+        if file_path:
+            message = 'Application & Enrollment submitted successfully! Your official offer letter has been generated and has been queued for email.'
+        return jsonify({
+            'message': message,
+            'application': new_app,
+            'enrollment': new_app,
+            'offer_letter_id': offer_id,
+            'warnings': warnings,
+            'email_pending': bool(to_email),
+            'offer_download_url': f'/api/applications/{app_id}/offer-letter.pdf'
+        }), 201
+
+    except Exception as top_err:
+        print(f"[CREATE APPLICATION TOP-LEVEL EXCEPTION] {top_err}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'error': f'Something went wrong during enrollment. Please refresh the page and try again. ({str(top_err)[:60]})'
+        }), 500
 
 @application_bp.route('/api/applications/me', methods=['GET'])
 @application_bp.route('/applications/me', methods=['GET'])

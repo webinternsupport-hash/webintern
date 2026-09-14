@@ -12,9 +12,11 @@ def get_jwt_secret():
     secret = (getattr(Config, 'SECRET_KEY', None) or os.getenv("JWT_SECRET") or DEFAULT_JWT_SECRET).strip()
     return secret if secret else DEFAULT_JWT_SECRET
 
-def generate_jwt(payload_data, expires_in_hours=24):
+def generate_jwt(payload_data, expires_in_hours=None):
     secret = get_jwt_secret()
     payload = payload_data.copy()
+    if expires_in_hours is None:
+        expires_in_hours = int(getattr(Config, 'JWT_EXPIRATION_HOURS', 24 * 7))
     payload['exp'] = datetime.datetime.utcnow() + datetime.timedelta(hours=expires_in_hours)
     payload['iat'] = datetime.datetime.utcnow()
     token = jwt.encode(payload, secret, algorithm=Config.JWT_ALGORITHM)

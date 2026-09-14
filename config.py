@@ -37,7 +37,7 @@ class Config:
     # JWT Configuration
     SECRET_KEY = (os.getenv("JWT_SECRET") or "webintern_jwt_secret_key_2026_secure_token_982347").strip()
     JWT_ALGORITHM = "HS256"
-    JWT_EXPIRATION_HOURS = 24
+    JWT_EXPIRATION_HOURS = int(os.getenv("JWT_EXPIRATION_HOURS", str(24 * 7)))
 
     # Supabase credentials
     SUPABASE_URL = (os.getenv("SUPABASE_URL") or "https://fzmdeigwxiesegvtuafk.supabase.co").strip()

@@ -7,18 +7,33 @@ from config import Config
 from seed_all_database import SECTORS_DATA, slugify
 
 def get_db_connection():
-    conn = sqlite3.connect(Config.SQLITE_DB_PATH, timeout=30.0)
-    conn.row_factory = sqlite3.Row
+    db_path = Config.SQLITE_DB_PATH
+    print(f"[DB Connection] Opening database: {db_path}")
+    
     try:
+        conn = sqlite3.connect(db_path, timeout=30.0)
+        conn.row_factory = sqlite3.Row
+        
         is_serverless = os.getenv("VERCEL") == "1" or os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
+        
         if not is_serverless:
             conn.execute("PRAGMA journal_mode=WAL;")
             conn.execute("PRAGMA synchronous=NORMAL;")
+            print("[DB] WAL mode enabled (local environment)")
         else:
             conn.execute("PRAGMA journal_mode=DELETE;")
-    except Exception:
-        pass
-    return conn
+            print("[DB] DELETE mode enabled (serverless environment)")
+            
+        # CRITICAL FIX: Verify database has tables after opening
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = cursor.fetchall()
+        print(f"[DB] Tables found: {len(tables)}")
+        
+        return conn
+    except Exception as e:
+        print(f"[DB Error] Failed to connect: {e}")
+        raise
 
 def ensure_migrations(cursor):
     """Ensure all extended tables, indexes, and columns exist for ultra-fast performance."""
@@ -65,7 +80,7 @@ def ensure_migrations(cursor):
             student_id VARCHAR(36) NOT NULL,
             document_type TEXT NOT NULL, -- 'OFFER_LETTER' or 'CERTIFICATE'
             document_number TEXT UNIQUE NOT NULL,
-            file_path TEXT NOT NULL,
+            file_path TEXT,
             status TEXT DEFAULT 'ISSUED', -- DRAFT, GENERATED, ISSUED, REVOKED
             email_status TEXT DEFAULT 'PENDING', -- PENDING, SENT, FAILED, RETRYING
             email_message_id TEXT,
@@ -223,6 +238,52 @@ def ensure_migrations(cursor):
     _add_col('submissions', 'graded_at', 'TEXT')
     _add_col('submissions', 'original_file_name', 'TEXT')
     _add_col('submissions', 'file_size', 'INTEGER')
+
+    # ========================================================
+    # Documents.file_path NOT NULL → nullable migration
+    # (SQLite doesn't support ALTER COLUMN, so rebuild table.)
+    # ========================================================
+    try:
+        cursor.execute("PRAGMA table_info(documents)")
+        cols = cursor.fetchall()
+        file_path_col = next((c for c in cols if c[1] == 'file_path'), None)
+        if file_path_col and file_path_col[3] == 1:  # notnull flag == 1
+            print("[DB Migration] Rebuilding documents table to make file_path nullable...")
+            cursor.executescript("""
+                PRAGMA foreign_keys = OFF;
+                CREATE TABLE IF NOT EXISTS documents_new (
+                    id VARCHAR(36) PRIMARY KEY,
+                    application_id VARCHAR(36) NOT NULL,
+                    student_id VARCHAR(36) NOT NULL,
+                    document_type TEXT NOT NULL,
+                    document_number TEXT UNIQUE NOT NULL,
+                    file_path TEXT,
+                    status TEXT DEFAULT 'ISSUED',
+                    email_status TEXT DEFAULT 'PENDING',
+                    email_message_id TEXT,
+                    email_sent_at TIMESTAMP,
+                    sheets_synced BOOLEAN DEFAULT FALSE,
+                    sheets_synced_at TIMESTAMP,
+                    sheets_error TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                INSERT OR IGNORE INTO documents_new
+                  (id, application_id, student_id, document_type, document_number, file_path, status,
+                   email_status, email_message_id, email_sent_at, sheets_synced, sheets_synced_at,
+                   sheets_error, created_at, updated_at)
+                SELECT id, application_id, student_id, document_type, document_number,
+                       COALESCE(file_path, ''), status, email_status, email_message_id,
+                       email_sent_at, sheets_synced, sheets_synced_at, sheets_error,
+                       created_at, updated_at
+                FROM documents;
+                DROP TABLE documents;
+                ALTER TABLE documents_new RENAME TO documents;
+                PRAGMA foreign_keys = ON;
+            """)
+            print("[DB Migration] documents.file_path now nullable OK")
+    except Exception as doc_mig_err:
+        print(f"[DB Migration Warning] documents rebuild skipped: {doc_mig_err}")
 
 EMBEDDED_SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS profiles (
