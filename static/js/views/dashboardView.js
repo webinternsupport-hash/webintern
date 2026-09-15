@@ -1,7 +1,20 @@
 // Dashboard View Controller - Mobile Optimized
 const DashboardView = {
-  render() {
-    const user = API.getCurrentUser();
+  async render() {
+    let user = API.getCurrentUser();
+
+    if (!user && API.getAuthToken()) {
+      try {
+        const res = await API.request('/api/auth/me');
+        if (res && res.user) {
+          user = res.user;
+          API.setCurrentUser(user);
+        }
+      } catch (e) {
+        console.warn('[Dashboard] Could not restore profile from token:', e);
+      }
+    }
+
     console.log('[Dashboard] Rendering for user:', user ? user.email : 'NOT LOGGED IN');
     
     if (!user) {
@@ -22,7 +35,7 @@ const DashboardView = {
           <div class="welcome-banner" style="background: linear-gradient(135deg, var(--color-blue-dark) 0%, var(--color-primary-blue) 100%); padding: 24px 16px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(8, 43, 102, 0.15);">
             <div>
               <h1 style="font-size: 22px; margin: 0; color: white; line-height: 1.3;">Welcome back! 👋</h1>
-              <p style="margin-top: 6px; opacity: 0.95; font-size: 14px; line-height: 1.5; color: white;">${user.name || user.email}</p>
+              <p style="margin-top: 6px; opacity: 0.95; font-size: 14px; line-height: 1.5; color: white;">${user.full_name || user.name || user.email}</p>
               <p style="margin-top: 6px; opacity: 0.9; font-size: 13px; line-height: 1.4; color: white;">Track your internships, submit assignments, and download certificates.</p>
             </div>
             <div class="tab-buttons" style="margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap;">

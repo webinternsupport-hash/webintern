@@ -350,7 +350,15 @@ def get_my_applications():
         app_item['completed_weeks'] = completed_weeks
         app_item['progress_percent'] = int((completed_weeks / (app_item['duration_weeks'] or 4)) * 100) if app_item['duration_weeks'] else 0
         
-        # Latest submission
+        # Get ALL submissions for this application (not just latest)
+        all_submissions = query_db("""
+            SELECT * FROM submissions
+            WHERE application_id = ?
+            ORDER BY week_number ASC
+        """, (app_item['id'],))
+        app_item['submissions'] = all_submissions or []
+        
+        # Latest submission for quick ref
         latest_sub = query_db("""
             SELECT * FROM submissions
             WHERE application_id = ?

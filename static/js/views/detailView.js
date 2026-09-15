@@ -182,37 +182,6 @@ const DetailView = {
       return;
     }
 
-    // ========== OPTIMISTIC INDEXEDDB SAVE (PRE-EMPTIVE) ==========
-    // Even if API is slightly slow on reply, student sees enrollment on next dashboard load.
-    let optimisticEnrollmentId = null;
-    try {
-      const existing = await Storage.getEnrollmentByInternship(user.id, internshipId);
-      if (!existing) {
-        const existingInternship = (window.__internshipsCache || []).find(i => i.id === internshipId) || {};
-        const now = new Date();
-        const endDate = new Date(now.getTime() + (28 * 24 * 60 * 60 * 1000));
-        const enrollment = {
-          userId: user.id,
-          internshipId: internshipId,
-          internshipTitle: existingInternship.title || '',
-          companyName: existingInternship.company_name || '',
-          sectorName: existingInternship.sector_name || '',
-          status: 'active',
-          progress: 0,
-          enrolledAt: now.toISOString(),
-          startDate: now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-          endDate: endDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-          serverData: null,
-          pendingSync: true
-        };
-        await Storage.saveEnrollment(enrollment);
-        optimisticEnrollmentId = enrollment.id;
-        console.log('[Storage] Optimistic enrollment saved:', enrollment.id);
-      }
-    } catch (storeErr) {
-      console.warn('[Storage] Optimistic save skipped:', storeErr);
-    }
-
     try {
       Toast.show('Submitting application & issuing offer letter...', 'info');
       const res = await API.request('/api/applications', {
@@ -220,52 +189,45 @@ const DetailView = {
         body: { internship_id: internshipId }
       });
 
-      // ========== PERSIST BACKED-UP ENROLLMENT TO INDEXEDDB ==========
+      // Cache server confirmed enrollment to IndexedDB for offline access
       if (Storage && res.application) {
         try {
           const app = res.application;
-          const storedEnrollment = await Storage.getEnrollmentByInternship(user.id, internshipId);
-          const finalEnrollment = storedEnrollment ? { ...storedEnrollment } : {
+          const finalEnrollment = {
+            id: app.id,
             userId: user.id,
-            internshipId: internshipId
+            internshipId: internshipId,
+            internshipTitle: app.internship_title || '',
+            companyName: app.company_name || '',
+            sectorName: app.sector_name || '',
+            status: app.status || 'active',
+            progress: 0,
+            enrolledAt: app.applied_at ? new Date(app.applied_at).toISOString() : new Date().toISOString(),
+            startDate: app.start_date,
+            endDate: app.end_date,
+            serverData: app,
+            pendingSync: false,
+            offerLetterId: res.offer_letter_id,
+            offer_download_url: res.offer_download_url
           };
-          finalEnrollment.internshipTitle = app.internship_title || finalEnrollment.internshipTitle || '';
-          finalEnrollment.companyName = app.company_name || finalEnrollment.companyName || '';
-          finalEnrollment.sectorName = app.sector_name || finalEnrollment.sectorName || '';
-          finalEnrollment.status = app.status || finalEnrollment.status || 'active';
-          finalEnrollment.progress = 0;
-          finalEnrollment.enrolledAt = app.applied_at ? new Date(app.applied_at).toISOString() : finalEnrollment.enrolledAt || new Date().toISOString();
-          finalEnrollment.startDate = app.start_date || finalEnrollment.startDate;
-          finalEnrollment.endDate = app.end_date || finalEnrollment.endDate;
-          finalEnrollment.serverData = app;
-          finalEnrollment.pendingSync = false;
-          finalEnrollment.offerLetterId = res.offer_letter_id;
-          if (res.offer_download_url) {
-            finalEnrollment.offer_download_url = res.offer_download_url;
-          }
-          if (!finalEnrollment.id) {
-            if (optimisticEnrollmentId) finalEnrollment.id = optimisticEnrollmentId;
-          }
           await Storage.saveEnrollment(finalEnrollment);
-          console.log('[Storage] Final enrollment persisted:', finalEnrollment);
 
           if (app.id) {
             const offerLetter = {
               userId: user.id,
-              enrollmentId: finalEnrollment.id,
+              enrollmentId: app.id,
               internshipId: internshipId,
               internshipTitle: finalEnrollment.internshipTitle,
-              candidateName: user.name || user.email,
+              candidateName: user.name || user.full_name || user.email,
               status: 'issued',
               issueDate: new Date().toISOString(),
               downloadUrl: res.offer_download_url || null,
               offerId: res.offer_letter_id || null
             };
             await Storage.saveOfferLetter(offerLetter);
-            console.log('[Storage] Offer letter saved to storage');
           }
         } catch (err) {
-          console.warn('[Storage] Failed to persist enrollment:', err);
+          console.warn('[Storage] Failed to cache confirmed enrollment:', err);
         }
       }
 
@@ -277,9 +239,9 @@ const DetailView = {
       }
 
       if (res.offer_download_url) {
-        Toast.show(res.message + ' You can also download the offer letter from the dashboard.', 'success', 5000);
+        Toast.show((res.message || 'Enrollment successful!') + ' You can also download the offer letter from the dashboard.', 'success', 5000);
       } else {
-        Toast.show(res.message, 'success');
+        Toast.show(res.message || 'Enrollment successful!', 'success');
       }
       window.location.hash = '#/dashboard';
     } catch (err) {
@@ -295,15 +257,7 @@ const DetailView = {
       } else {
         Toast.show(errMsg, 'error', 6000);
       }
-      // Clean up optimistic enrollment if actual apply failed.
-      // (Keeps IndexedDB honest; enrollment will be re-added on retry or on /me refresh.)
-      try {
-        const current = await Storage.getEnrollmentByInternship(user.id, internshipId);
-        if (current && current.pendingSync) {
-          await Storage.deleteEnrollment(current.id);
-          console.log('[Storage] Removed optimistic enrollment after apply failure');
-        }
-      } catch (_) { /* ignore */ }
     }
+  }
   }
 };
