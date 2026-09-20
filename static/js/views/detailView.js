@@ -126,11 +126,18 @@ export async function renderDetailView(slug) {
     statusMsg.innerHTML = `<span style="color: var(--primary);">Processing registration & generating Offer Letter PDF...</span>`;
 
     try {
+      // Call enrollment API
       const res = await API.applyInternship(internship.id);
+      
+      // Wait an additional 2 seconds to ensure Supabase sync completes on mobile
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       statusMsg.innerHTML = `<span style="color: var(--success);">✅ Enrolled! Redirecting to dashboard...</span>`;
+      
+      // Add small delay before redirect to ensure all data is synced
       setTimeout(() => {
         window.location.hash = '#/dashboard';
-      }, 1000);
+      }, 1500);
     } catch (err) {
       applyBtn.disabled = false;
       applyBtn.textContent = 'Apply for Internship Now';

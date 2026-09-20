@@ -6,14 +6,18 @@ import base64
 from config import Config
 from utils.logger import log_info, log_error, log_success
 
-def send_offer_letter_email_async(to_email, student_name, internship_title, pdf_path):
+def send_offer_letter_email_async(to_email, student_name, internship_title, pdf_path, doc_id=None):
     """
     Asynchronously sends offer letter email with PDF attachment via Resend API.
+    Updates email_status in documents table when completed.
     """
     def _send():
+        email_status = 'PENDING'
         try:
             if not Config.RESEND_API_KEY:
                 log_info(f"[EMAIL MOCK] Offer Letter email queued for {to_email} ({internship_title}). Resend API key not set.")
+                email_status = 'PENDING_NO_API_KEY'
+                _update_email_status(doc_id, email_status)
                 return
 
             url = "https://api.resend.com/emails"
@@ -63,36 +67,97 @@ def send_offer_letter_email_async(to_email, student_name, internship_title, pdf_
             # Remove None values
             payload = {k: v for k, v in payload.items() if v is not None}
 
-            response = requests.post(url, headers=headers, json=payload, timeout=12)
-            if response.status_code in (200, 201):
-                log_success(f"Offer Letter email sent successfully via Resend API to {to_email}")
-            elif response.status_code == 403 and "onboarding@resend.dev" not in payload.get("from", ""):
-                # Retry with default Resend verified sender
-                payload["from"] = "onboarding@resend.dev"
-                res_retry = requests.post(url, headers=headers, json=payload, timeout=12)
-                if res_retry.status_code in (200, 201):
-                    log_success(f"Offer Letter email sent successfully (via onboarding@resend.dev fallback) to {to_email}")
-                else:
-                    log_error(f"Resend API error (retry): {res_retry.text}")
-            else:
-                log_error(f"Resend API error sending Offer Letter: {response.text}")
+            # Retry logic with exponential backoff
+            max_retries = 3
+            retry_count = 0
+            last_error = None
+            
+            while retry_count < max_retries:
+                try:
+                    response = requests.post(url, headers=headers, json=payload, timeout=12)
+                    if response.status_code in (200, 201):
+                        log_success(f"Offer Letter email sent successfully via Resend API to {to_email}")
+                        email_status = 'SENT'
+                        break
+                    elif response.status_code == 403 and "onboarding@resend.dev" not in payload.get("from", ""):
+                        # Retry with default Resend verified sender
+                        payload["from"] = "onboarding@resend.dev"
+                        res_retry = requests.post(url, headers=headers, json=payload, timeout=12)
+                        if res_retry.status_code in (200, 201):
+                            log_success(f"Offer Letter email sent successfully (via onboarding@resend.dev fallback) to {to_email}")
+                            email_status = 'SENT'
+                            break
+                        else:
+                            last_error = res_retry.text
+                            log_error(f"Resend API error (retry): {res_retry.text}")
+                            email_status = 'FAILED'
+                    else:
+                        last_error = response.text
+                        log_error(f"Resend API error sending Offer Letter: {response.text}")
+                        email_status = 'FAILED'
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            import time
+                            time.sleep(2 ** retry_count)  # Exponential backoff: 2s, 4s, 8s
+                        continue
+                    break
+                except requests.Timeout:
+                    last_error = "Request timeout"
+                    email_status = 'FAILED'
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        import time
+                        time.sleep(2 ** retry_count)
+                    continue
+                except Exception as e:
+                    last_error = str(e)
+                    email_status = 'FAILED'
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        import time
+                        time.sleep(2 ** retry_count)
+                    continue
 
         except Exception as e:
             log_error(f"Failed to send Offer Letter email to {to_email}: {e}")
+            email_status = 'FAILED'
+        
+        # Update email status in documents table
+        _update_email_status(doc_id, email_status)
 
     thread = threading.Thread(target=_send)
-    thread.daemon = True
+    thread.daemon = False  # Changed to non-daemon to ensure completion
     thread.start()
 
 
-def send_certificate_email_async(to_email, student_name, internship_title, cert_id, pdf_path):
+def _update_email_status(doc_id, status):
+    """Update email_status in documents table."""
+    if not doc_id:
+        return
+    try:
+        from database import get_db_connection
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE documents SET email_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (status, doc_id))
+        conn.commit()
+        conn.close()
+        log_info(f"Updated email status to '{status}' for document {doc_id}")
+    except Exception as e:
+        log_error(f"Failed to update email status for document {doc_id}: {e}")
+
+
+def send_certificate_email_async(to_email, student_name, internship_title, cert_id, pdf_path, doc_id=None):
     """
     Asynchronously sends official Verified Certificate email with PDF attachment via Resend API.
+    Updates email_status in documents table when completed.
     """
     def _send():
+        email_status = 'PENDING'
         try:
             if not Config.RESEND_API_KEY:
                 log_info(f"[EMAIL MOCK] Certificate email queued for {to_email} ({internship_title}). Resend API key not set.")
+                email_status = 'PENDING_NO_API_KEY'
+                _update_email_status(doc_id, email_status)
                 return
 
             url = "https://api.resend.com/emails"
@@ -136,24 +201,66 @@ def send_certificate_email_async(to_email, student_name, internship_title, cert_
             }
             payload = {k: v for k, v in payload.items() if v is not None}
 
-            response = requests.post(url, headers=headers, json=payload, timeout=12)
-            if response.status_code in (200, 201):
-                log_success(f"Certificate email sent successfully via Resend API to {to_email}")
-            elif response.status_code == 403 and "onboarding@resend.dev" not in payload.get("from", ""):
-                payload["from"] = "onboarding@resend.dev"
-                res_retry = requests.post(url, headers=headers, json=payload, timeout=12)
-                if res_retry.status_code in (200, 201):
-                    log_success(f"Certificate email sent successfully (via onboarding@resend.dev fallback) to {to_email}")
-                else:
-                    log_error(f"Resend API error (retry): {res_retry.text}")
-            else:
-                log_error(f"Resend API error sending Certificate: {response.text}")
+            # Retry logic with exponential backoff
+            max_retries = 3
+            retry_count = 0
+            
+            while retry_count < max_retries:
+                try:
+                    response = requests.post(url, headers=headers, json=payload, timeout=12)
+                    if response.status_code in (200, 201):
+                        log_success(f"Certificate email sent successfully via Resend API to {to_email}")
+                        email_status = 'SENT'
+                        break
+                    elif response.status_code == 403 and "onboarding@resend.dev" not in payload.get("from", ""):
+                        payload["from"] = "onboarding@resend.dev"
+                        res_retry = requests.post(url, headers=headers, json=payload, timeout=12)
+                        if res_retry.status_code in (200, 201):
+                            log_success(f"Certificate email sent successfully (via onboarding@resend.dev fallback) to {to_email}")
+                            email_status = 'SENT'
+                            break
+                        else:
+                            log_error(f"Resend API error (retry): {res_retry.text}")
+                            email_status = 'FAILED'
+                            retry_count += 1
+                            if retry_count < max_retries:
+                                import time
+                                time.sleep(2 ** retry_count)
+                            continue
+                    else:
+                        log_error(f"Resend API error sending Certificate: {response.text}")
+                        email_status = 'FAILED'
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            import time
+                            time.sleep(2 ** retry_count)
+                        continue
+                    break
+                except requests.Timeout:
+                    email_status = 'FAILED'
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        import time
+                        time.sleep(2 ** retry_count)
+                    continue
+                except Exception as e:
+                    log_error(f"Exception sending certificate email: {e}")
+                    email_status = 'FAILED'
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        import time
+                        time.sleep(2 ** retry_count)
+                    continue
 
         except Exception as e:
             log_error(f"Failed to send Certificate email to {to_email}: {e}")
+            email_status = 'FAILED'
+        
+        # Update email status in documents table
+        _update_email_status(doc_id, email_status)
 
     thread = threading.Thread(target=_send)
-    thread.daemon = True
+    thread.daemon = False  # Changed to non-daemon to ensure completion
     thread.start()
 
 

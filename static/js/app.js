@@ -24,12 +24,12 @@ class App {
     // 1. Initialize IndexedDB cache
     await localDB.init();
 
-    // 2. Check current user session via API
-    await this.checkAuthSession();
-
-    // 3. Setup Navigation & Hash Listener
+    // 2. Setup Navigation & Hash Listener FIRST (before auth check)
     window.addEventListener('hashchange', () => this.handleRoute());
     this.setupNavigationUI();
+
+    // 3. Check current user session via API
+    await this.checkAuthSession();
 
     // 4. Initial Route rendering
     this.handleRoute();
@@ -38,6 +38,7 @@ class App {
   async checkAuthSession() {
     const token = API.getToken();
     if (!token) {
+      this.currentUser = null;
       this.updateHeaderAuthUI(null);
       return;
     }
@@ -51,6 +52,7 @@ class App {
     } catch (err) {
       console.warn('Auth session recovery failed, clearing token');
       API.clearToken();
+      this.currentUser = null;
       this.updateHeaderAuthUI(null);
     }
   }
@@ -266,6 +268,15 @@ window.showToast = showToast;
 
 // Initialize Application & PWA Service Worker
 document.addEventListener('DOMContentLoaded', () => {
+  // Ensure all auth UI buttons start in logged-out state
+  const headerLogoutBtn = document.getElementById('header-logout-btn');
+  const drawerLogoutBtn = document.getElementById('drawer-logout-btn');
+  const sheetLogoutBtn = document.getElementById('sheet-logout-btn');
+  
+  if (headerLogoutBtn) headerLogoutBtn.style.display = 'none';
+  if (drawerLogoutBtn) drawerLogoutBtn.style.display = 'none';
+  if (sheetLogoutBtn) sheetLogoutBtn.style.display = 'none';
+
   window.app = new App();
 
   if ('serviceWorker' in navigator) {

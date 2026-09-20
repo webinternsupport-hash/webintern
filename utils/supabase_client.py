@@ -309,10 +309,12 @@ def fetch_profile_from_supabase(identifier):
 def sync_application_to_supabase(app_data, cert_data=None, master_data=None, doc_data=None):
     """
     Upserts application, certificate, master internship, and document records into Supabase PostgREST tables.
+    Includes retry logic with exponential backoff for reliability.
     """
     url = Config.SUPABASE_URL
     service_key = Config.SUPABASE_SERVICE_ROLE_KEY or Config.SUPABASE_ANON_KEY
     if not url or not service_key:
+        log_error("Supabase URL or service key not configured")
         return False
 
     headers = {
@@ -323,6 +325,36 @@ def sync_application_to_supabase(app_data, cert_data=None, master_data=None, doc
     }
 
     success = True
+    max_retries = 3
+    retry_count = 0
+    
+    def _post_with_retry(endpoint, data):
+        """Helper to post with retry logic"""
+        for attempt in range(max_retries):
+            try:
+                resp = requests.post(f"{url}/rest/v1/{endpoint}", json=[data], headers=headers, timeout=10)
+                if resp.status_code in (200, 201, 204):
+                    return True
+                else:
+                    log_error(f"Failed to sync {endpoint} to Supabase (attempt {attempt + 1}/{max_retries}): {resp.status_code} {resp.text[:100]}")
+                    if attempt < max_retries - 1:
+                        import time
+                        time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
+                    continue
+            except requests.Timeout:
+                log_error(f"Timeout syncing {endpoint} (attempt {attempt + 1}/{max_retries})")
+                if attempt < max_retries - 1:
+                    import time
+                    time.sleep(2 ** attempt)
+                    continue
+            except Exception as e:
+                log_error(f"Exception syncing {endpoint} (attempt {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    import time
+                    time.sleep(2 ** attempt)
+                    continue
+        return False
+    
     try:
         # Ensure student profile exists in Supabase public.profiles first to satisfy foreign key
         if app_data and app_data.get('user_id'):
@@ -339,25 +371,17 @@ def sync_application_to_supabase(app_data, cert_data=None, master_data=None, doc
                     sync_profile_to_supabase(dict(local_p))
 
         if app_data:
-            resp = requests.post(f"{url}/rest/v1/applications", json=[app_data], headers=headers, timeout=10)
-            if resp.status_code not in (200, 201, 204):
-                log_error(f"Failed to sync application to Supabase: {resp.status_code} {resp.text[:100]}")
+            if not _post_with_retry('applications', app_data):
                 success = False
 
         if cert_data:
-            resp = requests.post(f"{url}/rest/v1/certificates", json=[cert_data], headers=headers, timeout=10)
-            if resp.status_code not in (200, 201, 204):
-                log_error(f"Failed to sync certificate to Supabase: {resp.status_code} {resp.text[:100]}")
+            _post_with_retry('certificates', cert_data)
 
         if master_data:
-            resp = requests.post(f"{url}/rest/v1/master_internships", json=[master_data], headers=headers, timeout=10)
-            if resp.status_code not in (200, 201, 204):
-                log_error(f"Failed to sync master_internship to Supabase: {resp.status_code} {resp.text[:100]}")
+            _post_with_retry('master_internships', master_data)
 
         if doc_data:
-            resp = requests.post(f"{url}/rest/v1/documents", json=[doc_data], headers=headers, timeout=10)
-            if resp.status_code not in (200, 201, 204):
-                log_error(f"Failed to sync document to Supabase: {resp.status_code} {resp.text[:100]}")
+            _post_with_retry('documents', doc_data)
 
         if success:
             log_success(f"Synced application {app_data.get('id')} to Supabase")
@@ -368,14 +392,14 @@ def sync_application_to_supabase(app_data, cert_data=None, master_data=None, doc
 
 def sync_application_to_supabase_async(app_data, cert_data=None, master_data=None, doc_data=None):
     """
-    Triggers non-blocking background thread for Supabase application sync.
+    Triggers non-blocking background thread for Supabase application sync with retry logic.
     """
     import threading
     t = threading.Thread(
         target=sync_application_to_supabase,
         args=(app_data, cert_data, master_data, doc_data)
     )
-    t.daemon = True
+    t.daemon = False  # Changed to non-daemon to ensure completion
     t.start()
 
 def fetch_applications_from_supabase(user_id, email):

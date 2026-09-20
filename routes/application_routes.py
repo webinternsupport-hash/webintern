@@ -189,8 +189,8 @@ def create_application():
     app_obj = dict(cursor.fetchone())
     conn.close()
     
-    # Trigger background tasks
-    send_offer_letter_email_async(profile['email'], profile['full_name'], internship['title'], pdf_path)
+    # Trigger background tasks - Pass doc_id for email status tracking
+    send_offer_letter_email_async(profile['email'], profile['full_name'], internship['title'], pdf_path, doc_id=doc_id)
     sync_event_to_google_sheets_async('APPLICATION', {
         'application_id': app_id, 'offer_number': offer_doc_num, 'student': profile['full_name'], 'email': profile['email']
     })
